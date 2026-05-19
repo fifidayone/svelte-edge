@@ -56,43 +56,7 @@ Use it when the user asks about:
 - treating experimental features as mandatory defaults
 - using ecosystem packages to override official framework guidance
 
-## Operating model
 
-The skill uses **canonical topic ownership** with two tiers:
-
-**Mandatory (always consulted when the topic comes up):**
-- `references/runes.md` — runes, reactivity, lifecycle, scheduling, reactive classes, context, bindings
-- `references/snippets.md` — snippets and composition
-- `references/attachments.md` — modern DOM behavior and action replacement
-- `references/animations-transitions.md` — motion, transitions, animations, easing
-- `references/async-svelte.md` — direct `await`, boundaries, abort-aware async patterns, `fork(...)`, hydratable data
-- `references/sveltekit.md` — SvelteKit architecture, routing, forms, auth, server safety, navigation, remote functions
-- `references/testing.md` — testing strategy and tool choice
-- `references/best-practices.md` — practical guardrails and pitfalls
-- `references/cli.md` — official `sv` commands
-
-**On-demand only (read only when the user explicitly asks about the topic):**
-- `references/migration.md` — migration-only work
-- `references/libraries.md` — ecosystem discovery
-
-If references overlap, prefer the canonical semantic owner defined in `SKILL.md`.
-
-## Repository structure
-
-| File | Purpose | Load mode |
-|---|---|---|
-| `SKILL.md` | Policy, working modes, routing, version gates, audit contract | always |
-| `references/runes.md` | Modern Svelte semantics: runes, reactivity, lifecycle, scheduling, reactive classes, context, bindings | mandatory |
-| `references/snippets.md` | Snippets, render props, typing, modern composition | mandatory |
-| `references/attachments.md` | `{@attach}`, `fromAction(...)`, modern DOM behavior | mandatory |
-| `references/animations-transitions.md` | `svelte/motion`, `transition:`, `in:`/`out:`, `animate:`, easing, custom motion | mandatory |
-| `references/async-svelte.md` | Direct `await`, `<svelte:boundary>`, `getAbortSignal()`, `fork(...)`, `hydratable(...)` | mandatory |
-| `references/sveltekit.md` | Stable SvelteKit defaults, state safety, routing, auth, forms, env/server-only safety, remote functions | mandatory |
-| `references/testing.md` | Vitest, Playwright, Storybook | mandatory |
-| `references/best-practices.md` | Guardrails, anti-mixing, hydration caveats, raw HTML safety | mandatory |
-| `references/cli.md` | Official `sv` commands and add-on guidance | mandatory |
-| `references/migration.md` | Migration guidance from legacy code | on-demand |
-| `references/libraries.md` | Community ecosystem discovery map | on-demand |
 
 ## Quick start
 
