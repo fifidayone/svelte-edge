@@ -79,7 +79,7 @@ Examples are inlined into their canonical owners rather than living in a separat
 
 ## Version and freshness
 
-Current baseline: **May 2026**.
+Current baseline: **JULY 2026**.
 
 Detailed version gates live in `SKILL.md`. Keep `README.md` lightweight and use it to explain scope, structure, and maintenance expectations.
 
