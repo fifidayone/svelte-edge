@@ -2,6 +2,13 @@
 
 Use snippets for new component composition instead of legacy slots.
 
+## Contents
+
+- [Basic and named snippets](#basic-snippets)
+- [Passing and typing snippets](#passing-snippets-to-components)
+- [Exported and programmatic snippets](#exported-snippets)
+- [When not to use snippets](#when-not-to-use-snippets)
+
 ## Basic snippets
 
 ```svelte
@@ -108,7 +115,19 @@ The `render` output is HTML, so treat it with the same care as any generated mar
 ## When not to use snippets
 
 Do not treat snippets as a replacement for all state sharing or all dynamic component logic.
-If the user needs dynamic component selection, consider normal component composition or `<svelte:component>`-style migration work only when required.
+In runes mode, component values are already dynamic. Render a capitalized value directly and do not generate `<svelte:component>` for new code:
+
+```svelte
+<script lang="ts">
+	import type { Component } from 'svelte';
+
+	let { selected: Selected }: { selected: Component<{ label: string }> } = $props();
+</script>
+
+<Selected label="Current" />
+```
+
+Use `Component` for component-value types. `SvelteComponent`, `ComponentType`, and `ComponentEvents` are deprecated class/event-era types. Preserve `<svelte:component>` only in coherent legacy-mode code or while migrating it.
 
 ## Hard reminders
 
@@ -119,3 +138,4 @@ If the user needs dynamic component selection, consider normal component composi
 - Type snippet inputs in TypeScript
 - Reach for `createRawSnippet` only for advanced programmatic rendering
 - Do not mix legacy slot APIs into new components
+- Dynamic component in runes mode -> render `<Selected />`, not `<svelte:component>`

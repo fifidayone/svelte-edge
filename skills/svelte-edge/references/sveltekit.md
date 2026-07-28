@@ -2,6 +2,17 @@
 
 Use this file for SvelteKit architecture and behavior.
 
+## Contents
+
+- [Stable architecture and server safety](#stable-default-architecture)
+- [Types, loading, and state](#types-and-props)
+- [Forms and server routes](#form-actions)
+- [Project configuration and environment variables](#project-configuration)
+- [Navigation and UI state](#navigation-apis)
+- [Errors and redirects](#error-and-redirect-helpers)
+- [Remote functions](#remote-functions)
+- [Server helpers](#getrequestevent)
+
 ## Stable default architecture
 
 For most SvelteKit apps, default to:
@@ -86,6 +97,7 @@ Never put authorization-critical logic in a layout load while child loads can ru
 ## `$app/state`
 
 Prefer `$app/state` in modern SvelteKit for route/page state instead of older patterns.
+Do not introduce deprecated `$app/stores` in new Svelte 5 code. Keep it only for Svelte 4 compatibility or an untouched legacy file.
 
 ```svelte
 <script lang="ts">
@@ -110,13 +122,54 @@ If an action sets or deletes cookies used by `handle` to populate `event.locals`
 
 Use `+server.ts` / `+server.js` for server-only handlers, APIs, webhooks, and custom HTTP behavior.
 
-## Server-only modules and env vars
+## Project configuration
+
+SvelteKit 2 still supports `svelte.config.js`. Since **2.62+**, configuration may instead live directly in the `sveltekit({...})` Vite plugin call, and `sv@0.16+` uses that layout for new projects.
+
+```ts
+// vite.config.ts
+import adapter from '@sveltejs/adapter-auto';
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+	plugins: [sveltekit({ adapter: adapter() })]
+});
+```
+
+In plugin configuration, SvelteKit options such as `adapter` sit alongside Svelte compiler options; there is no outer `kit` property. If configuration is passed to `sveltekit(...)`, any `svelte.config.js` is ignored rather than merged.
+
+- New project on Kit 2.62+ -> prefer the current `sv` scaffold layout in `vite.config`
+- Existing project -> preserve its coherent config location unless migration is requested
+- Never split options across both files
+- Kit 3 plans to require Vite-plugin configuration, but do not call `svelte.config.js` removed or invalid in Kit 2
+
+## Server-only modules and environment variables
 
 Use `$lib/server` for server-only code that must never enter the client bundle.
-Use `$env/static/private` for build-time private env reads and `$env/dynamic/private` for runtime private env reads.
-Only use public env modules for values safe to expose to the browser; public means client-readable.
 
-Do not import private env or `$lib/server` modules from client/shared code.
+### Stable SvelteKit 2 default
+
+Use `$env/static/private` / `$env/static/public` for build-time values and `$env/dynamic/private` / `$env/dynamic/public` for runtime values. Only use public env modules for values safe to expose to the browser; public means client-readable.
+
+### Explicit environment variables (experimental)
+
+SvelteKit **2.63+** offers an opt-in preview of the SvelteKit 3 model:
+
+- enable `experimental.explicitEnvironmentVariables`
+- declare variables in `src/env.ts` with `defineEnvVars` from `@sveltejs/kit/hooks`
+- import declared values from `$app/env/private` or `$app/env/public`
+- use `$app/env` instead of `$app/environment`
+- configure validation/transforms, `public`, `static`, and descriptions per variable
+
+This is an edge-mode recommendation only. `$env/*` and `$app/environment` remain the stable SvelteKit 2 default, but official docs say they will be removed in SvelteKit 3. Explain that migration horizon without pretending the experimental replacement is already mandatory.
+
+Never import private env or `$lib/server` modules from client/shared code.
+
+## Build and prerender additions
+
+- With **SvelteKit 2.66+**, adapter precompression also covers prerendered `.md` and `.mdx` files.
+- With **SvelteKit 2.67+**, use `prerender.handleInvalidUrl` to fail, warn, ignore, or custom-handle URLs the crawler cannot parse. Do not misuse `handleHttpError` for this case.
 
 ## Navigation APIs
 
@@ -169,7 +222,9 @@ Do not fake these with ordinary thrown strings or custom response objects when t
 Use `+error.svelte` and `error(...)` for route-level/server request failures.
 Use `<svelte:boundary>` for component-level async or rendering failures inside a subtree.
 
-In newer SvelteKit, server-side error boundaries are supported as well, but route-level errors are still the default answer for route/request failures.
+With **SvelteKit 2.54+** and **Svelte 5.53+**, `kit.experimental.handleRenderingErrors` can wrap route components in server rendering boundaries. This is experimental opt-in, not the default. Rendering errors go through `handleError` and the nearest `+error.svelte`; because rendering may already be in progress, read the passed `error` prop rather than expecting `page.error` to update.
+
+Route-level errors remain the default answer for request/load failures. Do not enable rendering-error handling merely because a project lacks the flag.
 
 ## Remote functions
 
@@ -186,10 +241,8 @@ Requirements:
 - `kit.experimental.remoteFunctions: true`
 - remote functions live in `.remote.ts` / `.remote.js` files
 
-Remote function APIs:
-- `query`
-- `query.batch`
-- `query.live`
+Remote functions have four flavours:
+- `query`, including the `query.batch` and `query.live` variants
 - `form`
 - `command`
 - `prerender`
@@ -203,15 +256,54 @@ For pre-populated form fields in **SvelteKit 2.56+**, use `field.as(type, value)
 
 In **SvelteKit 2.57+**, the form `submit` helper returns a `boolean` indicating submission validity for enhanced form remote functions. Use the return value instead of tracking validity separately.
 
+### Current query semantics (2.61+)
+
+Remote queries are Promise-like and can be awaited in any context: templates, component initialization, event handlers, module scope, universal `load`, and async callbacks. Identical calls share the same active cache, so an event-handler read dedupes with a rendered consumer.
+
+```svelte
+<script lang="ts">
+	import { getData } from './data.remote';
+</script>
+
+<p>{await getData()}</p>
+<button onclick={async () => console.log(await getData())}>Inspect</button>
+```
+
+The short-lived `.run()` API was removed in **SvelteKit 2.61**. Never generate `query.run()` for a current project.
+
+### Live queries
+
+`query.live` is available from **2.59+** for real-time `AsyncIterable` data. From **2.61+**, live-query instances are themselves async-iterable.
+
+- SSR consumes the first yielded value, then closes that iterator
+- active client consumers share one connection
+- instances expose `connected` and `reconnect()`
+- live queries have no `refresh()` because the stream updates itself
+- exclude streaming responses with `Cache-Control: no-store` from service-worker caching
+- reconnect intentionally after mutations when server state or cookies require a fresh stream
+
+Use live queries only for genuinely long-lived data, not as a fashionable replacement for ordinary reads.
+
+### Remote forms and commands: current landmarks
+
+- **2.60+**: `submit` and `hidden` fields accept numbers/booleans; unread validation issues warn in development.
+- **2.61+**: a form instance has programmatic `submit()`; `enhance` receives a form-instance copy. It no longer receives the old `{ form, data, submit }` object.
+- **2.64+**: `command` accepts `File` values directly.
+- **2.66+**: boolean checkbox fields should be optional/defaulted because unchecked inputs are absent from `FormData`.
+- **2.68+**: `RemoteFormEnhanceInstance` and `RemoteFormEnhanceCallback` are exported; submit-field values remain in the action payload.
+- **2.69+**: remote forms expose `submitted`.
+
+For file fields, set `enctype="multipart/form-data"`. Use SvelteKit **2.69.1+** when remote forms manipulate file inputs because that patch fixes prototype pollution in file-input deletion.
+
 ### Remote function gotchas
 
 These are correctness landmines documented in the official docs:
 
-- **Query anchoring**: queries must be created in a reactive context (`$derived`, `$effect`, or template). Calling `getData()` directly in an event handler will throw — use `query.run()` instead when reading outside the render phase.
-- **Batch and live queries**: `query.batch` batches multiple query calls into one server request; `query.live` streams async iterable results. Use live queries only for real-time data, and reconnect them intentionally after mutations.
+- **Query caching**: cache keys come from serialized arguments. Object/map/set members are sorted for stable keys; use an array when order must affect identity. Do not manually sort object keys.
+- **Batch queries**: `query.batch` combines calls into one server request. `requested(...)` supports batch queries from **2.59+**.
 - **`getRequestEvent()` inside remote functions** has restrictions: headers cannot be set (except cookies inside `form` and `command` kinds), and `route` / `params` / `url` reflect the *calling page*, not the remote endpoint. Critical for auth checks — do not assume `event.route.id` points at the remote function file.
 - **Sensitive form fields use the `_` prefix convention**: fields named with a leading underscore (e.g. `_password`) are not echoed back to the client on validation reload. Use this for any field that should not survive a round trip.
-- **File uploads require `enctype="multipart/form-data"`** on the form element when any field is of type `file`. SvelteKit will not transparently encode files without it.
+- **Unchecked booleans are absent**: make checkbox booleans optional/defaulted in the validation schema. SvelteKit 2.66+ warns about this common error.
 - **Remote validation failures**: invalid remote function arguments usually mean stale clients or hostile input. Use `handleValidationError` when you need a controlled generic response; avoid `unchecked` unless you accept the security tradeoff.
 - **Redirects**: `redirect(...)` works in `query`, `form`, and `prerender`, but not in `command`.
 
@@ -220,21 +312,13 @@ These are correctness landmines documented in the official docs:
 Remote `form` and `command` handlers can refresh or set query data in the same server round trip:
 
 - Server-driven refresh: call `getPosts().refresh()` or `getPost(id).set(value)` in the handler; the framework awaits forwarded refreshes.
+- In **2.65+**, a remote query can refresh or set another query when related cached data must update.
 - Live query reconnect: call `getNotifications(userId).reconnect()` when a mutation should restart an active `query.live`.
 - Client-requested refresh: client calls `.updates(...)`; server must explicitly accept with `requested(queryFn, limit)`.
-- `requested(...)` yields `{ arg, query }`; `limit` is required because the client controls the requested list.
+- From **2.58+**, `requested(...)` yields `{ arg, query }`; `limit` is required because the client controls the requested list and unbounded work is a denial-of-service risk.
 - Use `requested(queryFn, limit).refreshAll()` or live-query `reconnectAll()` shorthand when all accepted instances should update.
 
-### Remote function breaking changes (SvelteKit 2.56)
-
-If the project has opted in to experimental remote functions and is on 2.56+:
-
-- Client-requested query refreshes now require explicit server permission.
-- Cache stability is handled via sorted object keys internally — do not manually sort cache keys.
-- Queries expose a new `run()` method. **Do not `await` queries outside the render phase** — use `query.run()` instead.
-- Command-triggered query refresh failures are isolated per-query and do not cascade.
-- `requested` requires a `limit` parameter and yields `{ arg, query }` entries.
-- Hydratable transport means remote results can carry richer data types than JSON; do not add custom JSON serialization unless there is a concrete reason.
+Hydratable transport means remote results can carry richer types than JSON; do not add custom JSON serialization without a concrete interoperability requirement.
 
 ## `getRequestEvent()`
 
@@ -257,8 +341,12 @@ Use them when route transitions benefit from prefetching, but do not spam them e
 ## Hard reminders
 
 - Stable first: `load`, actions, `+server`, `$app/state`
+- New Svelte 5 project -> `$app/state`, never deprecated `$app/stores`
 - Avoid shared mutable server state
 - Keep `load` pure and side-effect-free
 - Use shallow routing and snapshots when UI state/history behavior matters
 - Recommend remote functions only in edge mode or opted-in projects
+- Current remote query call outside render -> `await query()`, never `.run()`
+- Keep stable `$env/*` defaults for Kit 2; present explicit env vars only as an opt-in Kit 3 migration preview
+- Keep all configuration in one place; Vite-plugin config wins and causes `svelte.config.js` to be ignored
 - For remote mutations, account for query refresh/reconnect explicitly

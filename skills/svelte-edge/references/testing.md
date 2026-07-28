@@ -12,6 +12,14 @@ It does not override framework semantics owned by other files.
 For async behavior, boundaries, and await semantics, trust `async-svelte.md`.
 For SvelteKit routing/form/server behavior, trust `sveltekit.md`.
 
+## Contents
+
+- [Official defaults and doctrine](#official-defaults)
+- [Vitest unit/component tests](#unit-and-component-tests-with-vitest)
+- [Component patterns and Storybook](#component-testing-patterns)
+- [Playwright E2E](#end-to-end-tests-with-playwright)
+- [Async and SvelteKit coverage](#what-to-test-in-async-first-ui)
+
 ## Official defaults
 
 Svelte is unopinionated overall, but for modern Svelte/Vite/SvelteKit projects the practical official-first defaults are:

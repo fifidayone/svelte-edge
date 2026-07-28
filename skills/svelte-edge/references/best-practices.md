@@ -2,6 +2,24 @@
 
 Use this file for guardrails and practical judgment.
 
+## Contents
+
+- [Syntax-generation choice](#choose-the-syntax-generation-before-writing)
+- [Anti-mixing and effect discipline](#the-anti-mixing-rule)
+- [Events, collections, and classes](#event-modifiers-in-modern-svelte-5)
+- [Typed wrappers and dynamic elements](#typed-element-wrappers)
+- [Hydration, testing, and HTML safety](#browser-only-and-hydration-sensitive-patterns)
+
+## Choose the syntax generation before writing
+
+1. Inspect `svelte`, `@sveltejs/kit`, and relevant tooling versions.
+2. Inspect the touched component: runes mode, legacy mode, or already mixed.
+3. For a new component, target current stable Svelte 5 syntax supported by the project.
+4. For a tiny fix, preserve the file's coherent generation.
+5. For an explicit migration, convert the whole component and its composition/event contracts together.
+
+Do not leak familiar legacy syntax into a new answer merely because it still compiles. In new Svelte 5.56+ components, avoid `export let`, `$:`, `on:`, `<slot>`, `{@const}`, `createEventDispatcher`, `beforeUpdate` / `afterUpdate`, `<svelte:component>`, class-component types, and deprecated `spring`/`tweened` stores.
+
 ## The anti-mixing rule
 
 For new components, do not mix legacy and modern Svelte generations.
@@ -24,6 +42,8 @@ Good:
 </script>
 ```
 
+Also keep template syntax current: use `{const ...}` / `{let ...}` on Svelte 5.56+ instead of legacy `{@const}`. Read `references/declaration-tags.md` before writing declaration tags.
+
 ## `$effect` discipline
 
 Treat `$effect` as an escape hatch.
@@ -37,7 +57,7 @@ Do **not** use `$effect` to keep another piece of state in sync if `$derived` ca
 
 Bad:
 ```svelte
-<script>
+<script lang="ts">
 	let price = $state(10);
 	let qty = $state(2);
 	let total = $state(0);
@@ -50,7 +70,7 @@ Bad:
 
 Good:
 ```svelte
-<script>
+<script lang="ts">
 	let price = $state(10);
 	let qty = $state(2);
 	let total = $derived(price * qty);
@@ -162,6 +182,8 @@ Do not make production behavior depend on it.
 ## Hard reminders
 
 - Never mix generations in a new component
+- Select syntax from the installed version before generating code
+- On Svelte 5.56+, use declaration tags rather than legacy `{@const}`
 - Prefer `$derived` over `$effect` for computed state
 - Do not use event modifiers on modern event attributes
 - Never render unsanitized user-controlled content with `{@html}`

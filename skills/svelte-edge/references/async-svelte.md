@@ -3,6 +3,13 @@
 Use this file for async-first component patterns in Svelte itself.
 Do not use it as the canonical source for SvelteKit remote functions; those belong in `references/sveltekit.md`.
 
+## Contents
+
+- [Direct await expressions](#direct-await-expressions)
+- [Boundaries](#svelteboundary)
+- [Abort-aware work](#getabortsignal)
+- [Fork and hydratable](#fork)
+
 ## Direct await expressions
 
 Available in **Svelte 5.36+** with `compilerOptions.experimental.async` enabled.
@@ -64,7 +71,7 @@ Important behavior:
 - later async updates should use `$effect.pending()` when you need update-time pending state — only meaningful when `compilerOptions.experimental.async` is enabled
 - boundaries catch rendering/effect errors in their subtree
 - `onerror={(error, reset) => ...}` is for reporting or handling boundary errors outside the `failed` snippet
-- newer SvelteKit versions also support server-side error boundaries in framework rendering flows
+- SvelteKit 2.54+ with Svelte 5.53+ can opt into framework rendering boundaries using `kit.experimental.handleRenderingErrors`; read `references/sveltekit.md` before recommending it
 - they do **not** catch errors from event handlers, timers, or unrelated async work outside render/effect flow
 
 ### Server rendering and `transformError`
@@ -103,6 +110,8 @@ It powers higher-level tools such as SvelteKit remote functions; most app code s
 Returned data must be serializable by Svelte's transport. Use library-prefixed keys to avoid collisions.
 With CSP, `hydratable` injects data into the rendered head; dynamic SSR needs a nonce and prerendered HTML needs hashes.
 
+If user-controlled data can reach `hydratable`, require **Svelte 5.55.7+**. That patch fixed an XSS vulnerability in hydratable user content. Do not offer escaping workarounds as a substitute for upgrading.
+
 ## Hard reminders
 
 - Direct await expressions require `experimental.async`
@@ -111,4 +120,5 @@ With CSP, `hydratable` injects data into the rendered head; dynamic SSR needs a 
 - `getAbortSignal()` is the right answer for cancelable async derived/effect work
 - `fork(...)` is advanced and should be justified, not sprayed everywhere
 - `hydratable(...)` is low-level; prefer SvelteKit data APIs in app code
+- User-controlled `hydratable(...)` data requires Svelte 5.55.7+
 - Remote functions belong in `references/sveltekit.md`

@@ -2,6 +2,14 @@
 
 Use this file for `svelte/motion`, `transition:`, `in:`, `out:`, and `animate:` directives, built-in transitions/animations, easing, and custom motion functions.
 
+## Contents
+
+- [Directive selection](#three-directives--pick-the-right-one)
+- [Built-in transitions and animations](#built-in-transitions-sveltetransition)
+- [Easing and motion](#easing-svelteeasing)
+- [Custom transitions and animations](#custom-transitions)
+- [Reduced motion](#reduced-motion-respect)
+
 ## Three directives — pick the right one
 
 | Directive | When element enters/exits DOM | When reordered in keyed each |
@@ -106,7 +114,8 @@ All easing functions are `(t: number) => number` and interchangeable with motion
 Prefer the modern class-based APIs. `spring` and `tweened` stores are deprecated; use `Spring` and `Tween`.
 
 - `prefersReducedMotion` is available in **Svelte 5.7+** and exposes `.current`.
-- `Spring` / `Tween` classes and option types are available in **Svelte 5.8+**.
+- `Spring` / `Tween` classes are available in **Svelte 5.8+**.
+- `TweenOptions`, `SpringOptions`, `SpringUpdateOptions`, and `Updater` are exported from `svelte/motion` in **Svelte 5.55+**. Do not claim those type exports exist in earlier 5.x releases.
 - `Spring.of(() => value)` and `Tween.of(() => value)` bind motion to a reactive value and must be created inside an effect root, such as component initialization.
 - `Spring#set(value, options)` and `Tween#set(value, options)` return promises that resolve when `current` catches up.
 - `SpringUpdateOptions` supports `instant` and `preserveMomentum`; legacy `hard` / `soft` only apply to the deprecated store API.

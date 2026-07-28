@@ -3,6 +3,15 @@
 Use this file for modern Svelte component semantics.
 For new Svelte 5 components, default to runes mode.
 
+## Contents
+
+- [Default runes](#default-runes)
+- [Reactivity control](#reactivity-control)
+- [Lifecycle, bindings, and state helpers](#lifecycle-and-scheduling)
+- [Reactive classes and shared state](#reactive-classes)
+- [Context and reactivity utilities](#context)
+- [Stores interop](#stores-interop)
+
 ## Default runes
 
 ### `$state`
@@ -127,6 +136,8 @@ Do not make production logic depend on it.
 ### `$host`
 Use `$host()` only inside custom element components to access the host element, commonly to dispatch custom DOM events.
 For normal Svelte component communication, prefer callback props or bindable props instead.
+
+`createEventDispatcher` is deprecated in Svelte 5. For new components, type callback props and call them directly. Reserve `$host()` plus a DOM `CustomEvent` for custom elements whose public contract is an actual DOM event.
 
 ## Reactivity control
 
@@ -420,6 +431,7 @@ Do not introduce stores just to share ordinary Svelte 5 state.
 ## Hard reminders
 
 - Default to runes mode for new components
+- Use callback props, not deprecated `createEventDispatcher`, for normal component events
 - Prefer `$derived` over `$effect` for computed state
 - Use lifecycle APIs only for lifecycle jobs; do not recreate Svelte 4 update patterns
 - Use `.svelte.ts` / `.svelte.js` modules for shared universal reactivity when module-scoped state is the right fit

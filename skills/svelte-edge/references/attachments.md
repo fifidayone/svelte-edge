@@ -5,6 +5,14 @@ For new DOM behavior in Svelte 5, prefer attachments when composition or reactiv
 Attachments are the modern option for many `use:` action scenarios.
 They provide a cleaner way to attach lifecycle-aware DOM behavior, but they are not an instruction to rewrite every simple existing action immediately.
 
+## Contents
+
+- [Basic and parameterized attachments](#basic-attachment)
+- [Cleanup and reactive reruns](#cleanup-capable-attachment)
+- [Forwarding through components](#passing-attachments-through-components)
+- [Action interop](#bridging-from-actions-with-fromaction)
+- [When to keep actions](#when-to-keep-using-legacy-actions)
+
 ## Basic attachment
 
 ```svelte
