@@ -22,8 +22,11 @@ Produce modern, coherent, production-safe Svelte 5 / SvelteKit answers.
 
 Assume the model already knows Svelte and web fundamentals. This skill is a correction and decision layer, not a beginner tutorial.
 
+Read reference files to get the correct version gate, current API shape, and recommended pattern — not to learn what the concept is. Do not skip a reference file because the topic feels familiar; the file exists because this area changes and training knowledge drifts.
+
+Read only the sections relevant to the task, not every file end-to-end.
+
 - Spend context on current syntax, version gates, architecture boundaries, and failure modes.
-- Do not recite rune definitions or scaffold boilerplate unless the user asks to learn them.
 - Prefer one production-shaped example over several introductory variants.
 - Teach fundamentals only when the user's question shows they need them.
 
@@ -42,7 +45,7 @@ Before generating or changing Svelte code:
 
 **Do not rely on training knowledge for any topic below.**
 Identify the relevant file from the table and read it with your file-reading tool before answering.
-Training knowledge is not a substitute — versions, APIs, and patterns change.
+Reference files exist because APIs, version gates, and recommended patterns change — training knowledge drifts.
 
 | Topic | File to read |
 |---|---|
@@ -54,7 +57,7 @@ Training knowledge is not a substitute — versions, APIs, and patterns change.
 | direct `await`, async `$derived`, `<svelte:boundary>`, `getAbortSignal()`, `fork(...)`, `hydratable(...)` | `references/async-svelte.md` |
 | `untrack`, `flushSync`, typed HTML wrappers, `svelte/elements` | `references/runes.md` and `references/best-practices.md` |
 | `mount`, `hydrate`, `unmount`, imperative roots, replacing `new Component(...)` | `references/imperative-api.md` |
-| `load`, form actions, auth guards, server-only modules, env vars, `+server`, `$app/state`, routing, snapshots, shallow routing, remote functions | `references/sveltekit.md` |
+| `load`, form actions, auth guards, server-only modules, env vars, `+server`, `$app/state`, routing, snapshots, shallow routing | `references/sveltekit.md` |
 | testing strategy, Vitest, Playwright, Storybook | `references/testing.md` |
 | pitfalls, anti-mixing, event modifiers, hydration caveats, raw HTML safety, `<svelte:element>` dynamic tags | `references/best-practices.md` |
 | `sv create`, `sv add`, `sv migrate`, `sv check`, experimental add-on, `svelte-check` flags/toolchain gates | `references/cli.md` |
@@ -63,13 +66,14 @@ If two files overlap on a topic, the row above is authoritative.
 
 ## Reference files — on-demand only
 
-Read these **only when the user explicitly asks about the topic**. Do not pull them for general Svelte questions.
+Read these **only when the trigger condition is met**. Do not pull them for general Svelte questions.
 
-| Topic | File to read |
-|---|---|
-| migration from legacy Svelte / Svelte 4 | `references/migration.md` |
-| ecosystem libraries, community packages, third-party tools | `references/libraries.md` |
-| maintaining or refreshing this skill against new Svelte releases or ecosystem packages | `references/maintenance.md` |
+| Topic | Trigger | File to read |
+|---|---|---|
+| migration from legacy Svelte / Svelte 4 | user asks about migration or upgrading from Svelte 4 | `references/migration.md` |
+| ecosystem libraries, community packages, third-party tools | user asks about a library, package, or third-party tool | `references/libraries.md` |
+| maintaining or refreshing this skill | user asks about updating the skill itself | `references/maintenance.md` |
+| remote functions — `query`, `query.live`, `query.batch`, `command`, `form` (remote), `prerender` (remote), `kit.experimental.remoteFunctions`, `.remote.ts` / `.remote.js` files | user asks about remote functions, OR project contains `.remote.ts` / `.remote.js` files, OR `kit.experimental.remoteFunctions` is enabled | `references/remote-functions.md` |
 
 ## Working modes
 
@@ -124,7 +128,7 @@ When a question spans topics, route by risk to correctness:
 5. Composition patterns
 6. Testing strategy
 
-For mixed async-Svelte + SvelteKit questions: `async-svelte.md` owns `<svelte:boundary>` and direct `await`; `sveltekit.md` owns remote functions and request boundaries.
+For mixed async-Svelte + SvelteKit questions: `async-svelte.md` owns `<svelte:boundary>` and direct `await`; `sveltekit.md` owns stable server architecture; `remote-functions.md` owns remote function request boundaries.
 
 ## Edge-feature guardrails
 
