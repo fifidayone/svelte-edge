@@ -31,7 +31,7 @@ Non-interactive scaffold (skips every prompt):
 npx sv create . --template minimal --types ts --no-add-ons --no-dir-check --install npm
 ```
 
-`--no-dir-check` skips the "directory not empty" prompt — but it does not clear existing files, so scaffolding into a directory that already has files mixes new content into old; prefer a clean or empty target directory. `--add <addon...>` selects add-ons instead of prompting for them; see `sv add` below for add-on syntax. (`--no-download-check` skips download-confirmation prompts; it is accepted by both `sv create` and `sv add`.)
+`--no-dir-check` skips the "directory not empty" prompt. The scaffold leaves existing directories (`.git`, `.agents`) untouched but overwrites same-named files — a pre-existing `.gitignore` is silently replaced — so scaffold into a clean or empty target directory. `--add <addon...>` selects add-ons instead of prompting for them; see `sv add` below for add-on syntax. (`--no-download-check` skips download-confirmation prompts; it is accepted by both `sv create` and `sv add`.)
 
 Fold add-ons into the initial `--add` call at creation rather than scaffolding plain and adding them after — `sv create` resolves every `--add` add-on before its one install, so there's no earlier install for a later `sv add` to fight.
 
@@ -43,7 +43,7 @@ npx sv create . --template minimal --types ts --add tailwindcss="plugins:none" -
 
 - `tailwindcss` takes one option: `plugins` with values `typography`, `forms` (multiselect, comma-separated; default `none`). Set it explicitly to skip prompts, e.g. `tailwindcss="plugins:typography,forms"`.
 - The add-on adds `@tailwindcss/vite` to the Vite config and creates `src/routes/layout.css` with `@import 'tailwindcss';`, imported by a root `src/routes/+layout.svelte` (v4 is CSS-first: no `tailwind.config.js`, no `@tailwind` directives). Adding it later with `npx sv add tailwindcss` also works.
-- Exception: component libraries, headless packages, design-system primitives, and minimal content sites keep scoped CSS plus CSS custom properties — no add-on needed.
+- Exception: component libraries, headless packages, design-system primitives, and minimal content sites keep scoped CSS plus CSS custom properties — no add-on needed (swap `--add tailwindcss=...` for `--no-add-ons` in the scaffold commands; deleting `--add` outright re-prompts for add-ons). Marketing and showcase sites straddle the line: Tailwind when marketing blocks or a Tailwind-based component stack is planned, scoped CSS for bespoke one-off brand design.
 
 For a brand-new **SvelteKit 3** project, scaffold on the `sv@next` line — it creates SvelteKit 3 directly (`@sveltejs/kit@3.0.0-next.*` and `#lib` subpath imports):
 
@@ -51,7 +51,7 @@ For a brand-new **SvelteKit 3** project, scaffold on the `sv@next` line — it c
 npx -y sv@next create . --template minimal --types ts --add tailwindcss="plugins:none" --no-dir-check --install npm
 ```
 
-After scaffolding, verify what actually got installed: the `@next` dist-tag floats and template pins can lag the newest preview — a fresh scaffold may resolve an older `3.0.0-next.*`, or an `@sveltejs/adapter-*` line whose Kit 2 peer range conflicts with Kit 3 and fails `npm install` with `ERESOLVE`. Move the preview packages explicitly when needed — `npm install @sveltejs/kit@next @sveltejs/adapter-auto@next` (same dist-tag mechanics as `references/migration.md`).
+After scaffolding, verify what actually got installed (`npm ls @sveltejs/kit`): the `@next` dist-tag floats and template pins can lag the newest preview — a fresh scaffold may resolve an older `3.0.0-next.*`, or an `@sveltejs/adapter-*` line whose Kit 2 peer range conflicts with Kit 3 and fails `npm install` with `ERESOLVE`. Move the preview packages explicitly when needed — `npm install @sveltejs/kit@next @sveltejs/adapter-auto@next` (same dist-tag mechanics as `references/migration.md`).
 
 For an existing SvelteKit 2 project, convert it with `npx -y sv@next migrate sveltekit-3 --tasks all` (see `sv migrate` below). `npx -y` auto-confirms installing the package and `@next` is a floating tag that resolves at run time — verify the concrete version it pulls before relying on it in an existing project.
 
@@ -72,6 +72,8 @@ Add-on options attach with `=`: a single option is `<addon>=<opt>:<val>`, multip
 
 - `sveltekit-adapter=` takes one of six choices: `auto` (default), `node`, `static`, `vercel`, `cloudflare`, `netlify` — run `sv add --help` for the current set.
 - `sveltekit-adapter="adapter:static"` installs `@sveltejs/adapter-static`. A project scaffolded with it fails `vite build` with `Encountered dynamic routes` until you add `export const prerender = true` to the root `src/routes/+layout.ts` (or configure the adapter's `fallback` for an SPA) — this is standard adapter-static behavior (documented, and unchanged for years), not a SvelteKit 3 regression.
+- `adapter-auto` (the default) ends a fully successful build with the warning `Could not detect a supported production environment` when no platform is detected — the build is green; it is the cue to pick a real adapter when deploying, not a failure to fix.
+- The prettier add-on writes a `format` script (`prettier --write .`) that formats the whole project root — if the root hosts non-project files (e.g. an `.agents/` directory), add a `.prettierignore` for them or the format run rewrites those files too.
 - Every `sv add` run also prompts for a package manager unless you pass `--install <npm|pnpm|yarn|bun|deno>` or `--no-install`, and — if the working directory has uncommitted changes — adds an extra `Verifications failed. Do you wish to continue?` gate (defaults to **No**) unless you pass `--no-git-check`. Both apply no matter which add-on you're installing; see the Experimental feature add-on below for a fully non-interactive example combining these with addon-specific options.
 
 ## `sv migrate`

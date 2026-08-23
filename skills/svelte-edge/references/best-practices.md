@@ -153,6 +153,10 @@ Forward rest props to the actual element. This preserves attributes, events, act
 Use `<svelte:element this={tag}>` only when the tag is genuinely dynamic.
 If `this` is nullish, nothing renders. If `this` is a void element such as `br`, `hr`, or `img`, do not render children inside it; the children are ignored and Svelte logs the `dynamic_void_element_content` runtime warning in development — it does not throw. (A literal void tag with children is a hard compile error: `void_element_invalid_content`.)
 
+- The parser ends a `<script>` block at the first literal `</script>` — including inside a JS string, so a markup sample embedded as a string (e.g. a copyable code block) fails compilation (`js_parse_error`: Unterminated string constant). Escape or split the sequence: `'<\/script>'` or `'<' + '/script>'`.
+- A literal `{` in markup always starts Svelte syntax, never text: `{#each list}` as prose opens an unterminated block (hard compile error), while `{const x = 1}` or `{@html raw}` parse as a real declaration tag or tag — compiling cleanly but rendering nothing. When markup must show Svelte syntax as text (copyable code blocks, demo captions), escape the braces: `{'{const x = 1}'}`.
+- A component allows a single top-level `<style>` element — appending a second during iterative edits is the hard compile error `style_duplicate`. Merge new styles into the existing block.
+
 ## Browser-only and hydration-sensitive patterns
 
 Be careful with browser-only values in SSR contexts.

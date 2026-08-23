@@ -416,6 +416,7 @@ Use this for reactive window values such as:
 - `screenTop`
 
 These exports provide a reactive `.current` property and let you avoid manual listeners or `<svelte:window>` bindings for these values.
+During SSR there is no window state — these values are `undefined` on the server, so `.current` is nullable under strict TypeScript. Guard reads (`(scrollY.current ?? 0) > 8`) or `svelte-check` fails with `'scrollY.current' is possibly 'undefined'`.
 
 ```svelte
 <script lang="ts">

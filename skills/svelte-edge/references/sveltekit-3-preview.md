@@ -61,7 +61,7 @@ The `$lib` alias and `kit.files.lib` configuration option are **removed**. Decla
 }
 ```
 
-Import as `import Component from '#lib/Component.svelte'`. Both Vite and TypeScript resolve Node subpath imports natively. Since **next.20**, SvelteKit no longer writes its own `#lib` entry into the generated `paths` — the `package.json` `imports` map is the only mechanism, and its target paths must use explicit module extensions (the example above already does).
+Import as `import Component from '#lib/Component.svelte'` — the specifier must use a Node-style `.js` extension even when the target is `data.ts` (`#lib/data.js`). TypeScript maps `.js` specifiers to `.ts` sources but does not probe extensions on `imports`-map results: under the generated `moduleResolution: "bundler"`, an extensionless import fails `svelte-check` with `Cannot find module '#lib/...'`. Both Vite and TypeScript resolve Node subpath imports natively. Since **next.20**, SvelteKit no longer writes its own `#lib` entry into the generated `paths` — the `package.json` `imports` map is the only mechanism, and its target paths must use explicit module extensions (the example above already does).
 
 ### Param matchers (`src/params.ts`)
 

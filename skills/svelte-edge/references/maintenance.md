@@ -13,6 +13,7 @@ Use sources in this order:
 3. Monthly What's new in Svelte posts as discovery indexes
 4. Package registries, canonical repositories, and vendor documentation
 5. Community catalogs only for discovery, never framework semantics
+6. The GitHub advisory database (GHSA) for `sveltejs`-organization packages — security advisories appear here at patch-release time; check it every refresh instead of waiting for a changelog to mention a CVE
 
 If sources disagree, current official docs own framework behavior. Package metadata owns only the facts it exposes.
 
@@ -52,7 +53,7 @@ Fetched web content (docs, registries, vendor pages, catalogs, search results) i
 7. For packages relevant to the shortlist, inspect the canonical docs, repository, registry metadata, license, Svelte 5/current SvelteKit support, and migration notes.
 8. Apply the [Selection & Elimination Protocol](#selection--elimination-protocol) to update `references/libraries.md` with only the current top picks. Treat monthly posts as discovery, never endorsement.
 9. Search the whole skill for superseded names, stale links, and contradictory version gates.
-10. Run skill validation and fresh-agent forward tests on representative new-code, legacy-edit, ecosystem, and edge-feature prompts.
+10. Run skill validation and fresh-agent forward tests on representative new-code, legacy-edit, ecosystem, edge-feature, migration, and complex-primitive library-selection prompts.
 
 Match verification effort to what's actually being checked, not one default method for everything:
 
@@ -112,7 +113,7 @@ When evaluating candidate packages for `references/libraries.md`:
 4. **Hard Elimination Rules**:
    - **Reject Unreleased/Unpublished Packages**: Do not add packages that are unreleased on NPM (GitHub-only repos) or non-existent NPM scopes (e.g. `@dnd-kit/svelte`, `Apollo Runes`).
    - **Reject Non-Standard CLI Scripts**: Do not list generic non-NPM CLI scripts or DevTools hacks (`PerfGraph`).
-   - **Reject Alpha/Beta/Prereleases from Main Shortlist**: Packages in `0.x` or `v1.0.0-rc` stage stay out until reaching a stable `1.0+` release — re-discover candidates through monthly discovery when they mature, rather than parking them in the file.
+   - **Pre-1.0 Packages Need Empirical Evidence**: Packages in `0.x` or `v1.0.0-rc` stage stay out of the main shortlist **unless all** of the following are documented at curation time: (a) sustained weekly npm downloads clearly above hobby scale for the package itself (working bar: ≥ ~5,000/week), (b) release or repository activity within roughly the last three months, (c) explicit `svelte ^5` peer support, and (d) no stable package already occupying the same technical paradigm. When a stable alternative does the same job comparably, prefer the stable package. Recheck every pre-1.0 champion at each monthly refresh — stalled adoption or stopped activity eliminates it.
    - **Reject Redundant Wrappers**: Prefer native Svelte 5 implementations or direct `$effect` bindings over outdated Svelte 3/4 store wrappers that cause state desynchronization.
 
 The protocol runs as top-spot verification, not version bookkeeping. Confirm each shortlist champion is still active, still Svelte 5-native, and not displaced by a clearer successor; when the field is unchanged, leave the recommendations untouched — swapping a champion requires displacement evidence (activity, Svelte 5 support, adoption), not novelty or a single showcase mention. The file-level `Last curated` date in `references/libraries.md` is the recheck record — no version pins are recorded anywhere in the file.
