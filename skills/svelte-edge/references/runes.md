@@ -186,6 +186,7 @@ Use `bind:` for deliberate two-way data flow, not as the default for every prop.
 - `bind:this` is `undefined` until mount; read it in an effect or event handler, not during component initialization. Under strict TypeScript, type it as `T | undefined` (e.g. `let node: HTMLElement | undefined = $state();`) — typing it as `T` alone fails `svelte-check`.
 - `bind:files` needs a `FileList`; create one with `DataTransfer` when clearing or replacing files, and avoid constructing it during SSR.
 - Component bindings require the child prop to use `$bindable()`. A fallback on a bound prop still expects the parent to provide a non-`undefined` value when bound.
+- Form-reset defaults: inputs accept `defaultValue` and checkboxes `defaultChecked` (**Svelte 5.6+**), and `<select>` accepts `defaultValue` (**Svelte 5.57+**) — on form reset the element reverts to that value instead of empty/`false`. On initial render the binding takes precedence unless it is `null`/`undefined`. `<select defaultValue={x}>` is the clean way to seed a default when options come from an `{#each}` block, where putting `selected` on an `<option>` is awkward.
 
 ## State helpers
 
@@ -302,6 +303,7 @@ Passing a primitive `$state` variable to a function passes the current value, no
 ## Context
 
 Use `createContext()` in **Svelte 5.40+** when you want typed context helpers.
+Since **Svelte 5.57+**, `createContext()` returns a third `has` function — `const [get, set, has] = createContext<T>();` — for checking whether the context has been set without triggering the `get` error. Earlier destructuring of just `[get, set]` keeps working.
 Keep the helper in a normal module like `context.ts`, not inside a `.svelte` component wrapper.
 
 ```ts
@@ -375,6 +377,13 @@ Use these when the reactive shape itself is useful:
 - `SvelteURLSearchParams`
 
 They behave like their native counterparts but participate in Svelte's reactivity.
+
+`SvelteMap` gains `getOrInsert(key, value)` and `getOrInsertComputed(key, (key) => value)` in **Svelte 5.57+** — the read-or-initialize pattern without a manual `has`/`get` dance:
+
+```ts
+const user = users.getOrInsertComputed(id, () => loadUser(id));
+```
+
 
 ### `createSubscriber`
 Use `createSubscriber` when building your own reactive wrapper for external event sources.

@@ -156,7 +156,7 @@ State minimum versions instead of silently downgrading syntax. Always verify pro
 
 **Critical Security Patch Floors:**
 - `hydratable(...)` with user-controlled data: require **Svelte 5.55.7+** (GHSA-f3cj-j4f6-wq85 — SSR XSS via insecure Promise serialization in supplied content)
-- DOM-clobbering XSS: require **Svelte 5.55.7+** (CVE-2026-42573, GHSA-rcq-6q8c-2c42)
+- DOM-clobbering XSS: require **Svelte 5.55.7+** (CVE-2026-42573, GHSA-rcqx-6q8c-2c42)
 - `transformError(...)` in boundaries: require **Svelte 5.53.5+** (CVE-2026-27902 unescaped comments XSS)
 - Form action and remote function origin checks: require **SvelteKit 2.70.0+** (in non-production `NODE_ENV` builds)
 - Remote form file input deletion: require **SvelteKit 2.69.1+** (prototype pollution fix)
@@ -218,6 +218,6 @@ Frame ecosystem choices on separate axes: maturity (`established` | `current` | 
 
 ## Freshness policy
 
-Validated baseline: **August 23, 2026** — Svelte **5.56.10**, SvelteKit **2.70.3** (latest) / **3.0.0-next.25** (next), `sv` **0.17.0** (latest) / **1.0.0-next.5** (next), `svelte-check` **4.7.6**, `svelte-language-server` **0.18.4**, `svelte2tsx` **0.7.61**, `Vite` **8.2.2**, `@sveltejs/vite-plugin-svelte` **7.3.0**. SvelteKit 3 preview coverage validated separately: `references/sveltekit-3-preview.md` tracks `3.0.0-next.25`; peer floors on that line unchanged (Svelte `^5.56.4`, Vite `^8.0.12`, `@sveltejs/vite-plugin-svelte` `^7.0.0`, TypeScript 6, Node 22.17+).
+Validated baseline: **September 1, 2026** — Svelte **5.57.0**, SvelteKit **2.70.3** (latest) / **3.0.0-next.25** (next), `sv` **0.17.0** (latest) / **1.0.0-next.6** (next), `svelte-check` **4.7.6**, `svelte-language-server` **0.18.4**, `svelte2tsx` **0.7.61**, `Vite` **8.2.2**, `@sveltejs/vite-plugin-svelte` **7.3.0**. SvelteKit 3 preview coverage validated separately: `references/sveltekit-3-preview.md` tracks `3.0.0-next.25`; peer floors on that line unchanged (Svelte `^5.56.4`, Vite `^8.0.12`, `@sveltejs/vite-plugin-svelte` `^7.0.0`, TypeScript 6, Node 22.17+).
 
 Update version gates when official releases change minimums or feature status. Treat official docs and changelogs as authoritative; use monthly blog posts as discovery indexes. Review ecosystem entries more often than framework semantics — packages decay faster. When uncertain, state the version requirement rather than guess. For the refresh workflow, read `references/maintenance.md`.

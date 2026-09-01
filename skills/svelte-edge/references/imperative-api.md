@@ -31,7 +31,7 @@ await unmount(app, { outro: true });
 
 ## Server-side render results
 
-- `render(Component)` from `svelte/server` returns `{ body, head }` — the `html` property is deprecated (`html_deprecated`); use `body`.
+- `render(Component)` from `svelte/server` returns `{ body, head }` — the `html` property is deprecated (`html_deprecated`); use `body`. Since **Svelte 5.57+**, `svelte/server` also exports the `RenderOutput`, `SyncRenderOutput`, `Csp`, and `Sha256Source` types for typing server render output and CSP nonce/hash sources.
 
 ## Migration boundary
 

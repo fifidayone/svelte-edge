@@ -117,7 +117,7 @@ It powers higher-level tools such as SvelteKit remote functions; most app code s
 Returned data must be serializable by Svelte's transport. Use library-prefixed keys to avoid collisions.
 With CSP, `hydratable` injects data into the rendered head; dynamic SSR needs a nonce and prerendered HTML needs hashes.
 
-If user-controlled data reaches `hydratable`, require **Svelte 5.55.7+** — the patch fixes an XSS from insecure Promise serialization in hydrated SSR content (GHSA-f3cj-j4f6-wq85). The same 5.55.7 floor also covers a distinct DOM-clobbering XSS advisory (CVE-2026-42573, GHSA-rcq-6q8c-2c42) that affects SSR/hydrated markup more broadly. Do not offer escaping workarounds as a substitute for upgrading to Svelte 5.55.7+.
+If user-controlled data reaches `hydratable`, require **Svelte 5.55.7+** — the patch fixes an XSS from insecure Promise serialization in hydrated SSR content (GHSA-f3cj-j4f6-wq85). The same 5.55.7 floor also covers a distinct DOM-clobbering XSS advisory (CVE-2026-42573, GHSA-rcqx-6q8c-2c42) that affects SSR/hydrated markup more broadly. Do not offer escaping workarounds as a substitute for upgrading to Svelte 5.55.7+.
 
 ## Hard reminders
 
