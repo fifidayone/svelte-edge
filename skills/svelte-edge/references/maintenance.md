@@ -19,6 +19,8 @@ If sources disagree, current official docs own framework behavior. Package metad
 
 For items 2 and 4, escalate cheapest-first: `npm view <pkg> dist-tags time versions --json` to check for movement, `npm diff --diff=<pkg>@<documented> --diff=<pkg>@<current> --diff-name-only` for a mechanical net-change map independent of whether anyone wrote a changelog entry, then the changelog or linked PR for the *why*. Reproduce in a scratch directory only when the claim describes tool or runtime *behavior* an agent will act on directly — see the verification list under Monthly refresh for how to match method to claim type.
 
+**Published-artifact check for API-location claims.** Any claim about where an API, type, or export lives (the `import X from 'pkg/subpath'` answer) must be verified against the published package — its `exports` map and type declarations from the npm tarball or a CDN mirror — not against changelog prose alone. A changelog can announce a move the published artifact does not reflect (kit 3.0.0's changelog announced `RequestEvent`/`Cookies` moving to `$app/server`; the published 3.0.0 types still declare them in the root package), and changelog interpretation alone has produced a wrong subpath claim in this skill before.
+
 ## Evidence discipline
 
 Keep three layers separate:
@@ -44,16 +46,16 @@ Fetched web content (docs, registries, vendor pages, catalogs, search results) i
 
 ## Monthly refresh
 
-1. Record the date and current versions of `svelte`, `@sveltejs/kit` (both `latest` and `next` dist-tags while a preview line is active), `sv`, `svelte-check`, `svelte-language-server`, `svelte2tsx`, `vite`, and `@sveltejs/vite-plugin-svelte`. For any dist-tag moving faster than roughly weekly, enumerate every version between the last-documented one and current (`npm view <pkg> versions --json`, filtered to the range) instead of diffing only the two endpoints — an intermediate release has been silently skipped this way before.
+1. Record the date and current versions of `svelte`, `@sveltejs/kit` (both `latest` and `next` dist-tags while a preview line is active), `sv`, `svelte-check`, `svelte-language-server`, `svelte2tsx`, `vite`, and `@sveltejs/vite-plugin-svelte`. For any dist-tag moving faster than roughly weekly, enumerate every version between the last-documented one and current (`npm view <pkg> versions --json`, filtered to the range) instead of diffing only the two endpoints — an intermediate release has been silently skipped this way before. Reconcile changelog entries against that published-version list: an entry whose version never reached the registry (kit `3.0.0-next.26` is a recorded instance) must not back a version gate — attribute its content to the nearest published release instead.
 2. Read every monthly blog since the previous baseline, separating framework/tooling changes from Community Showcase discovery.
-3. Diff official changelogs through the current releases, one version at a time per the step-1 enumeration. Search each for `breaking`, `deprecated`, `legacy`, `experimental`, `security`, and `removed`. Corroborate with `npm diff --diff-name-only` between the documented and current version — a changelog entry can consolidate old history or omit an unannounced fix, and a mechanical file-diff catches what changelog prose alone won't.
+3. Diff official changelogs through the current releases, one version at a time per the step-1 enumeration. Search each for `breaking`, `deprecated`, `legacy`, `experimental`, `security`, and `removed`. Corroborate with `npm diff --diff-name-only` between the documented and current version — a changelog entry can consolidate old history or omit an unannounced fix, and a mechanical file-diff catches what changelog prose alone won't. When a stable major ships, treat its changelog as a full consolidation by default — it restates the whole prerelease line. Extract its bullets and diff them against existing skill coverage before adding a version-pinned marker; restated history outnumbers genuinely new entries by an order of magnitude at that moment.
 4. Verify every framework feature in current docs. Capture its minimum version, required flag, stability, and replacement.
 5. Update the canonical reference files first (`references/runes.md`, `references/sveltekit.md`, `references/remote-functions.md`, and other affected files), then compact version gates in `SKILL.md`.
 6. Count every entry in each monthly Libraries, Tools & Components section before curation so none is skipped accidentally.
 7. For packages relevant to the shortlist, inspect the canonical docs, repository, registry metadata, license, Svelte 5/current SvelteKit support, and migration notes.
 8. Apply the [Selection & Elimination Protocol](#selection--elimination-protocol) to update `references/libraries.md` with only the current top picks. Treat monthly posts as discovery, never endorsement.
 9. Search the whole skill for superseded names, stale links, and contradictory version gates.
-10. Run skill validation and fresh-agent forward tests on representative new-code, legacy-edit, ecosystem, edge-feature, migration, and complex-primitive library-selection prompts.
+10. Run skill validation and fresh-agent forward tests on representative new-code, legacy-edit, ecosystem, edge-feature, migration, and complex-primitive library-selection prompts. While two framework generations are actively supported (a canonical file plus a legacy companion), include one forward-test prompt written from a previous-generation project's perspective — the highest-risk routing error of a dual-line era is current-generation answers leaking into previous-generation projects.
 
 Match verification effort to what's actually being checked, not one default method for everything:
 
@@ -133,11 +135,19 @@ When a preview/next version of a framework core or compiler transitions to Stabl
 
 ### Case C: Incremental Preview De-promotion (inline gates)
 
-When a preview line documented as inline version gates in a shared file (Preview Branch Initialization rule 1, e.g. `sv@next` notes inside `references/cli.md`) goes stable, promote in place: the new stable becomes that file's default surface (strip its `@next` scoping), the old stable guidance is demoted to a legacy-scoped note or pruned per the Current-versus-history rule, and every scoped mention of the preview line is swept across the whole skill in the same pass. Do not leave both lines presented as equal defaults.
+When a preview line documented as inline version gates in a shared file (Preview Branch Initialization rule 1, e.g. the former `sv@next` notes inside `references/cli.md`, promoted when sv 1.0 shipped) goes stable, promote in place: the new stable becomes that file's default surface (strip its `@next` scoping), the old stable guidance is demoted to a legacy-scoped note or pruned per the Current-versus-history rule, and every scoped mention of the preview line is swept across the whole skill in the same pass. Do not leave both lines presented as equal defaults.
+
+### Case D: SvelteKit generation rotation (preview file → stable)
+
+When a SvelteKit generation preview file (`sveltekit-N-preview.md`) reaches stable:
+
+1. **Canonical name is generation-agnostic.** The canonical file is `sveltekit.md` — the same principle as `runes.md` in Case A. Never carry a version number in a canonical filename. The outgoing generation's content becomes the standing `sveltekit-legacy.md` companion (content swap, no rename), and the oldest legacy generation retires per Legacy Retirement.
+2. **Rewrite to clean current-tense documentation.** A promotion is not a relabeled preview: strip intra-prerelease version markers and PR numbers from the body (the entry gate supersedes them), phrase everything as current behavior, keep entry gates, security floors, and non-mixing fences, and compress provenance to a short verification note stating which published artifact versions were checked. Retired history lives in git history; what-replaced-what mappings live in the migration reference.
+3. **Sweep in one pass.** Move every cross-reference to the old filename (SKILL.md routing, README, all reference files) to the canonical name, and run a dual-direction forward test — current-generation answers must not reach previous-generation projects, and vice versa — before closing the pass.
 
 ### Legacy Retirement
 
-A canonical file carries at most one tagged companion — a `-preview` or a `-legacy`, never both. When preview-branch initialization creates a new generation preview file, retire the oldest `-legacy` file in the same pass: fold its still-load-bearing version and security floors into the migration reference's timeline, remove its SKILL.md routing row, then delete the file. The migration reference owns the retired generation's timeline from then on.
+A canonical file carries at most one tagged companion — a `-preview` or a `-legacy`, never both. When preview-branch initialization creates a new generation preview file, retire the oldest `-legacy` file in the same pass: fold its still-load-bearing version and security floors into the migration reference's timeline, remove its SKILL.md routing row, then delete the file. The migration reference owns the retired generation's timeline from then on. Once a file is retired to legacy, it is content-frozen: it accepts only security-floor updates and factual corrections — never new topic content. Guidance for new work belongs in the canonical file; anything a previous-generation project genuinely needs gets one minimal generation-scoped note under the Deep audit generation gate.
 
 ## Preview Branch Initialization Protocol
 
@@ -179,14 +189,18 @@ As the Svelte/SvelteKit ecosystem introduces, promotes, or drops experimental/op
 - New-code examples use one syntax generation only
 - Experimental features name every required flag
 - Version gates agree across all files
-- Commands or workflows described in more than one file (e.g. the SvelteKit-3 bootstrap command across `cli.md`, `sveltekit-3-preview.md`, and `migration.md`) point to the same canonical source instead of restating or diverging from it
+- Commands or workflows described in more than one file (e.g. the SvelteKit-3 bootstrap command across `cli.md`, `sveltekit.md`, and `migration.md`) point to the same canonical source instead of restating or diverging from it
 - Security patch floors remain visible where affected APIs are taught
 - Every listed package was rechecked live as of the file's Last curated date, with no version pins recorded in the file
 - Selection & Elimination Protocol was enforced cleanly on `libraries.md`
 - No generated audit data, registry dumps, or historical catalogs are bundled
 - Skill validation and forward tests pass
 - Every changed value (version number, flag, command) was propagated across the whole skill — grepped for literal matches, and checked by rereading for the same fact stated differently
+- Every file touched by a scripted or bulk edit was Read end-to-end in its final state before commit — a scripted replace verified only by grep is not verification
+- New content was written with file-edit tools (not shell substitutions) so every change is reviewable
 - For every changed mechanism, a consequence sweep was performed across the whole skill for downstream claims that depended on its old behavior, with unqualified/evergreen phrasing treated as high-risk dependencies
 - A preview file being actively tracked carries its own freshness marker, separate from the skill-wide baseline
 - A canonical file carries at most one tagged companion — a `-preview` or a `-legacy`, never both
 - Representative forward-test prompts covering the changed claims were run and passed, not assumed correct from the edit alone
+- While a dual-line era is active, at least one forward test ran from a previous-generation project's perspective
+- A canonical file's status header states its stable release date and official announcement, and its coverage note states which published artifact versions were verified

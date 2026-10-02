@@ -10,7 +10,7 @@ Do not use it as the default source for brand-new code.
 - [Migration doctrine](#migration-doctrine)
 - [SvelteKit migration](#sveltekit-migration)
 - [Remote-function compatibility timeline](#remote-function-compatibility-timeline)
-- [SvelteKit 3 preview migration](#sveltekit-3-preview-migration)
+- [SvelteKit 3 migration](#sveltekit-3-migration)
 - [Post-migration reading](#post-migration-reading)
 
 ## CLI-first migration
@@ -20,6 +20,8 @@ Use the official migration CLI as the primary tool. Do not manually rewrite what
 ```bash
 npx sv migrate svelte-5
 ```
+
+On **sv 1.0+** this legacy migration still runs through `sv`, but delegates to `svelte-migrate@1` under the hood; it is not task-based and does not accept `--tasks`.
 
 For SvelteKit projects, also run:
 
@@ -96,7 +98,7 @@ SvelteKit **2.62+** can place all Svelte/SvelteKit configuration in `sveltekit({
 - remove the old config after verifying tooling support
 - never leave partial settings in both places, because plugin configuration causes `svelte.config.js` to be ignored
 
-The old file remains supported in SvelteKit 2. Move it early only for a deliberate cleanup or SvelteKit 3 preparation. This subsection covers **SvelteKit 2** readiness steps only — once the project actually upgrades to the `3.0.0-next.*` line, stop following this subsection and read `references/sveltekit-3-preview.md` instead, since SvelteKit 3 makes this config location mandatory rather than optional.
+The old file remains supported in SvelteKit 2. Move it early only for a deliberate cleanup or SvelteKit 3 preparation. This subsection covers **SvelteKit 2** readiness steps only — once the project actually upgrades to the `@sveltejs/kit@3.*` line, stop following this subsection and read `references/sveltekit.md` instead, since SvelteKit 3 makes this config location mandatory rather than optional.
 
 ### Environment variables and SvelteKit 3 readiness
 
@@ -109,7 +111,7 @@ An opted-in migration includes:
 - replace `$app/environment` with `$app/env`
 - preserve public/private boundaries and validate transformed values
 
-This is the **SvelteKit 2** opt-in flag timeline. It is a separate migration from the SvelteKit 3 preview's own environment-variable breaking changes (e.g. its `next.10` move of `defineEnvVars` and its `schema`/`static`/`building` options) — do not cite a SvelteKit 2 version number as if it applied to SvelteKit 3 preview behavior, or vice versa. See `references/sveltekit-3-preview.md` for the SvelteKit 3 preview's environment-variable model.
+This is the **SvelteKit 2** opt-in flag timeline. It is a separate migration from the SvelteKit 3 environment-variable model (its `defineEnvVars` API with `schema`/`static`/`building` options) — do not cite a SvelteKit 2 version number as if it applied to SvelteKit 3 behavior, or vice versa. See `references/sveltekit.md` for the SvelteKit 3 environment-variable model.
 
 ## Remote-function compatibility timeline
 
@@ -139,21 +141,31 @@ When upgrading an older remote-functions project to a current release, prioritiz
 
 Do not teach or preserve `.run()` as a compatibility fallback. Pinning to SvelteKit 2.56–2.60 is the only reason it should appear in historical code.
 
-Remote functions on the SvelteKit 3 preview line have their own additional breaking changes (e.g. mandatory `form.fields.foo.as(...)`, stricter `event.url`/`event.params`/`event.route` access inside queries). Once a project is on `3.0.0-next.*`, cross-check remote-function code against `references/sveltekit-3-preview.md` in addition to this timeline — the two timelines are not interchangeable.
+Remote functions on the SvelteKit 3 line have their own additional breaking changes (e.g. mandatory `form.fields.foo.as(...)`, stricter `event.url`/`event.params`/`event.route` access inside queries). Once a project is on `@sveltejs/kit@3.*`, cross-check remote-function code against `references/sveltekit.md` in addition to this timeline — the two timelines are not interchangeable.
 
-## SvelteKit 3 preview migration
+## SvelteKit 3 migration
 
-SvelteKit 3 is still a `3.0.0-next.*` prerelease, not a stable release. Treat it as a distinct generation from SvelteKit 2 — the subsections above prepare a SvelteKit 2 project for an eventual jump; they are not a substitute for the actual migration.
+SvelteKit 3.0.0 is **stable** (released 2026-10-01). Treat it as a distinct generation from SvelteKit 2 — the subsections above prepare a SvelteKit 2 project for the jump; they are not a substitute for the actual migration.
 
-The SvelteKit 3 jump happens on the `sv@next` line. For a **new** project, `npx -y sv@next create` scaffolds SvelteKit 3 directly (`@sveltejs/kit@3.0.0-next.*` and `#lib` imports). For an **existing** SvelteKit 2 project, run `npx -y sv@next migrate sveltekit-3 --tasks all --confirm` (plus `sv migrate app-state`). The two prerequisite tasks (`package-json` — moves SvelteKit, its peers, and every `@sveltejs/adapter-*` to the `next` line — and `tsconfig` — retargets `extends` to `$app/tsconfig`) run automatically; `all` selects every remaining task, including `collect-migration-instructions`, which writes `MIGRATION_TASKS.md` for the non-automated steps (e.g. `$service-worker` replacement, leftover `$app/stores`, `handleValidationError`, cookie v2, adapter-specific changes) plus `@migration-task` comments — the same CLI-first + cleanup-after shape as the `svelte-5` migration, and the CLI recommends one task at a time with a commit after each. The pre-`sv@next` experimental-add-on route is superseded — don't use it for new SvelteKit 3 work. Official guide: https://next.svelte.dev/docs/kit/migrating-to-sveltekit-3. This file owns the CLI workflow; the SvelteKit 3 knowledge surface lives in `references/sveltekit-3-preview.md`.
+The migration runs on the current `sv` CLI (1.0+). For a **new** project, `npx sv create` scaffolds SvelteKit 3 directly (stable `@sveltejs/kit@3.*` and `#lib` imports). For an **existing** SvelteKit 2 project, run `npx sv migrate sveltekit-3 --tasks all --confirm` (add `--no-git-check --install <pm>` / `--no-install` to stay non-interactive; the `$app/state` conversion is included as one of the tasks — a separate `sv migrate app-state` run is not needed).
 
-npm does not re-resolve a dist-tag on a bare `npm install` — a tag is looked up only at install time, and the lockfile records the concrete version (npm/cli#3755). If `npm install` reports 'up to date' while `package-lock.json` still resolves the old line, reinstall the moved packages explicitly: `npm install @sveltejs/kit@next @sveltejs/adapter-<name>@next`.
+Harness-verified on sv 1.0.1 against a kit-2 challenge project (12 tasks). Automated: `package.json` moves to the kit-3 line **including TypeScript 6 and matching adapter majors** plus the `#lib` `imports` map; config moves into the `sveltekit({...})` Vite plugin and `svelte.config.js` is deleted; `tsconfig` retargets to `$app/tsconfig`; `$lib/x` rewrites to `#lib/x.js`; folder matchers consolidate into `src/params.ts` (`defineParams`); `$env/static/*` imports convert to `$app/env/*` with a generated `src/env.ts`; `$app/stores`/`$page` convert to `$app/state`/`page`; `pushState`/`replaceState` rewrite to `goto({ shallow, state, replace })`; external redirects gain `{ external: true }`; hooks types move to `@sveltejs/kit/hooks`. Non-automated work lands in `MIGRATION_TASKS.md` — work through it one task at a time with a commit after each. Official guide: https://svelte.dev/docs/kit/migrating-to-sveltekit-3. This file owns the CLI workflow; the SvelteKit 3 knowledge surface lives in `references/sveltekit.md`.
+
+Verified manual-task surface (harness-verified; `svelte-check` + production build green after these steps):
+
+- `MIGRATION_TASKS.md` owns: the `$service-worker` replacement (new model: `self` from `$app/service-worker`, `version` from `$app/env`, asset metadata from `$app/manifest` — there is no `build`/`files` pair to rename), the service-worker TS project split, `error(status, {...})` → `error(status, message)`, `invalidateAll` → `refreshAll` (keeps `page.state` — note it), `json`/`text` → `Response.json`/`new Response`, `csrf.checkOrigin` removal, and `goto` destination review.
+- `svelte-kit sync` hard-fails with a named error (`config_option_removed_check_origin`) while the moved config still carries removed options — complete the config manual task first; the error is precise, not noise.
+- Three findings the checker catches but `MIGRATION_TASKS.md` does not list: the migrator leaves `sequence<Handle>`'s type argument in place (kit 3 `sequence` takes none); generated `src/params.ts` function matchers have implicit-`any` params (annotate `string`); and the generated `#lib` barrel entry points at `src/lib/index.js` even when no barrel exists (create it or drop the entry).
+- The generated `src/env.ts` declares every detected variable required at build time — runtime-only or optional variables need the `building ? v.optional(...) : ...` validator shape, or the build fails with `env_invalid` naming the missing variable.
+- Deprecations are left working, not removed: page-level `export const snapshot` still compiles on 3.0.
+
+npm does not re-resolve a dist-tag on a bare `npm install` — a tag is looked up only at install time, and the lockfile records the concrete version (npm/cli#3755). This matters when a package moves across dist-tags (e.g. a project pinned to the kit `next` prerelease line while `latest` moves ahead): if `npm install` reports 'up to date' while `package-lock.json` still resolves the old line, reinstall the moved packages explicitly (e.g. `npm install @sveltejs/kit@next @sveltejs/adapter-<name>@next`).
 
 The migration rewrites import statements, not string literals — test files that reference a moved module by name (e.g. `vi.mock('$app/environment')`, `jest.mock('$app/stores')`) are not touched. After migrating, grep the whole repo (including `*.test.*`/`*.spec.*`, setup files, and fixtures) for the old module names and update them by hand.
 
-Once a project resolves `@sveltejs/kit@3.0.0-next.*`, or the user explicitly asks to migrate from SvelteKit 2 to SvelteKit 3, stop using this file for SvelteKit-specific guidance and read `references/sveltekit-3-preview.md` instead. It owns:
+Once a project resolves `@sveltejs/kit@3.*`, or the user explicitly asks to migrate from SvelteKit 2 to SvelteKit 3, stop using this file for SvelteKit-specific guidance and read `references/sveltekit.md` instead. It owns:
 
-- exact toolchain/version floors for the preview line
+- exact toolchain/version floors for the SvelteKit 3 line
 - the complete SvelteKit 3 knowledge surface (config, routing, env, navigation, service workers, remote functions, behavior changes)
 - code-generation recipes for writing new SvelteKit 3 code
 - adapter verification and test checklist
@@ -165,5 +177,5 @@ Do not hand-roll a SvelteKit 3 migration from this file's SvelteKit 2 readiness 
 After completing a migration, consult the following references for patterns and gotchas in the migrated code:
 
 - **State architecture and runes gotchas** — `references/runes.md` (destructuring pitfalls, `$effect` async tracking, pass-by-value, `$effect.root` cleanup)
-- **SvelteKit patterns** — `references/sveltekit.md` (load functions, form actions, SSR safety, `$app/state`)
+- **SvelteKit patterns** — `references/sveltekit.md` (load functions, `refreshAll`, form actions, SSR safety, `$app/state`; SvelteKit 2 specifics: `references/sveltekit-legacy.md`)
 - **Anti-mixing and pitfalls** — `references/best-practices.md` (syntax coherence rules, hydration caveats, raw HTML safety)

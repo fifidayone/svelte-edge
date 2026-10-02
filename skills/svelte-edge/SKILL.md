@@ -2,7 +2,7 @@
 name: svelte-edge
 description: >
   Future-first, self-sustaining guidance for writing modern Svelte 5 and
-  SvelteKit 2/3 code.
+  SvelteKit 3 (current) / SvelteKit 2 (legacy) code.
 
   Use this skill whenever the user asks about Svelte, SvelteKit, or frontend
   code that is clearly Svelte.
@@ -15,9 +15,10 @@ description: >
 
 ## Purpose
 
-Produce modern, coherent, production-safe Svelte 5 / SvelteKit 2/3 answers.
+Produce modern, coherent, production-safe Svelte 5 / SvelteKit answers.
 
 - **Stable-first.** Experimental features are opt-in only.
+- **SvelteKit 3 is the current stable generation** — default SvelteKit answers to `references/sveltekit.md`. SvelteKit 2 is the legacy line; its guidance lives in `references/sveltekit-legacy.md` and applies to projects resolving `@sveltejs/kit@2.*`.
 - **TypeScript-first** for new code unless the codebase clearly says otherwise.
 - **Current non-legacy syntax first.** Inspect project versions, then target the newest documented stable pattern they support.
 - **Never mix Svelte 4 and Svelte 5 syntax** in the same component.
@@ -63,7 +64,8 @@ Reference files exist because APIs, version gates, and recommended patterns chan
 | direct `await`, async `$derived`, `<svelte:boundary>`, `getAbortSignal()`, `fork(...)`, `hydratable(...)` | `references/async-svelte.md` |
 | `untrack`, `flushSync`, typed HTML wrappers, `svelte/elements` | `references/runes.md` and `references/best-practices.md` |
 | `mount`, `hydrate`, `unmount`, imperative roots, replacing `new Component(...)` | `references/imperative-api.md` |
-| `load`, form actions, auth guards, server-only modules, env vars, `+server`, `$app/state`, routing, snapshots, shallow routing (SvelteKit 2) | `references/sveltekit.md` |
+| `load`/`refreshAll`, form actions, auth guards, server-only modules, env vars, `+server`, routing, snapshots, shallow routing, `$app/state`, `#lib`, `resolve()`/`asset()`, service workers, adapters, `x-sveltekit-` reserved params (SvelteKit 3 — current generation) | `references/sveltekit.md` |
+| SvelteKit 2 architecture (`load`, form actions, `+server`, `$app/state`, `invalidateAll`, `pushState`/`replaceState`, `$env/*`, `svelte.config.js`) — legacy line, projects resolving `@sveltejs/kit@2.*` | `references/sveltekit-legacy.md` |
 | testing strategy, Vitest, Playwright, Storybook | `references/testing.md` |
 | pitfalls, anti-mixing, event modifiers, hydration caveats, raw HTML safety, `<svelte:element>` dynamic tags | `references/best-practices.md` |
 | `sv create`, `sv add`, `sv migrate`, `sv check`, experimental add-on, `svelte-check` flags/toolchain gates | `references/cli.md` |
@@ -76,16 +78,15 @@ Read these **only when the trigger condition is met**. Do not pull them for gene
 
 | Topic | Trigger | File to read |
 |---|---|---|
-| migration from legacy Svelte / Svelte 4, or from SvelteKit 2 to SvelteKit 3 | user asks about migration or upgrading from Svelte 4, or about migrating from SvelteKit 2 to SvelteKit 3 | `references/migration.md` (+ `references/sveltekit-3-preview.md` for the SvelteKit 3 knowledge surface) |
+| migration from legacy Svelte / Svelte 4, or from SvelteKit 2 to SvelteKit 3 | user asks about migration or upgrading from Svelte 4, or about migrating from SvelteKit 2 to SvelteKit 3 | `references/migration.md` (+ `references/sveltekit.md` for the SvelteKit 3 knowledge surface) |
 | ecosystem libraries, community packages, third-party tools | user asks about a library, package, or third-party tool; or the task calls for a complex UI primitive from the list in [Component selection policy](#component-selection-policy) | `references/libraries.md` |
 | maintaining or refreshing this skill | user asks about updating the skill itself | `references/maintenance.md` |
 | remote functions | user asks about `query`, `command`, `form`, or `prerender`; project contains `.remote.ts` / `.remote.js`; or `kit.experimental.remoteFunctions` is enabled | `references/remote-functions.md` |
-| SvelteKit 3 preview (writing or reviewing SvelteKit 3 code) | project resolves `@sveltejs/kit@3.0.0-next.*`; or user explicitly asks about SvelteKit 3 / "SvelteKit 3 preview" | `references/sveltekit-3-preview.md` |
 
 ## Working modes
 
 ### New code mode (default)
-Modern Svelte 5: runes, declaration tags over legacy `{@const}`, snippets over slots, event attributes (`onclick`), attachments over actions (except `use:enhance` for form progressive enhancement, which remains the built-in mechanism), SvelteKit primitives (`load`, form actions, `+server`, `$app/state`). No experimental flags unless they materially improve the requested solution. When scaffolding an app, prefer Tailwind CSS — fold `tailwindcss="plugins:none"` into the initial `--add` call (see `references/cli.md`); scoped CSS + custom properties remain the choice for component libraries and minimal sites.
+Modern Svelte 5: runes, declaration tags over legacy `{@const}`, snippets over slots, event attributes (`onclick`), attachments over actions (except `use:enhance` for form progressive enhancement, which remains the built-in mechanism). SvelteKit 3 primitives: `load`, form actions, `+server`, `$app/state`, `refreshAll`, `goto` shallow routing, `#lib` subpath imports, Vite-plugin configuration — see `references/sveltekit.md` (default to it for SvelteKit architecture questions; switch to `references/sveltekit-legacy.md` only when the project resolves `@sveltejs/kit@2.*`). No experimental flags unless they materially improve the requested solution. When scaffolding an app, prefer Tailwind CSS — fold `tailwindcss="plugins:none"` into the initial `--add` call (see `references/cli.md`); scoped CSS + custom properties remain the choice for component libraries and minimal sites.
 
 ### Legacy edit mode
 User gave an existing file for fix or local refactor.
@@ -98,7 +99,7 @@ Never half-migrate into a hybrid.
 ### Edge feature mode
 Only when one of: user explicitly wants the newest patterns, the project has experimental flags enabled, or the solution clearly benefits from async-first / remote functions.
 
-You may recommend `compilerOptions.experimental.async`, `kit.experimental.remoteFunctions`, `kit.experimental.explicitEnvironmentVariables`, or `kit.experimental.handleRenderingErrors`. State clearly that they are experimental opt-in. Do not treat missing flags as bugs. Prefer stable primitives when they solve the problem cleanly. On the SvelteKit 3 preview line, some of these differ — `kit.experimental.handleRenderingErrors` is removed and explicit environment variables need no flag; see `references/sveltekit-3-preview.md`.
+You may recommend `compilerOptions.experimental.async` (Svelte), `kit.experimental.remoteFunctions` or `kit.experimental.forkPreloads` (both SvelteKit lines). On SvelteKit 2 only, also `kit.experimental.explicitEnvironmentVariables` or `kit.experimental.handleRenderingErrors`. State clearly that they are experimental opt-in. Do not treat missing flags as bugs. Prefer stable primitives when they solve the problem cleanly. On SvelteKit 3, explicit environment variables are standard (no flag) and `handleRenderingErrors` is removed — rendering-boundary handling is unconditional; see `references/sveltekit.md`.
 
 ### Audit mode
 Only when explicitly asked for an audit, review, modernization pass, or health check. Categorize findings (see audit contract). Do not treat disabled experimental flags as bugs by default. Inspect versions and flags before judging compatibility.
@@ -135,7 +136,7 @@ When a question spans topics, route by risk to correctness:
 5. Composition patterns
 6. Testing strategy
 
-For mixed async-Svelte + SvelteKit questions: `async-svelte.md` owns `<svelte:boundary>` and direct `await`; `sveltekit.md` owns stable server architecture; `remote-functions.md` owns remote function request boundaries.
+For mixed async-Svelte + SvelteKit questions: `async-svelte.md` owns `<svelte:boundary>` and direct `await`; `sveltekit.md` owns current-generation server architecture; `sveltekit-legacy.md` owns the SvelteKit 2 line; `remote-functions.md` owns remote function request boundaries.
 
 ## Edge-feature guardrails
 
@@ -151,17 +152,17 @@ State minimum versions instead of silently downgrading syntax. Always verify pro
 
 **Major Baseline Floors:**
 - Svelte 5: **Svelte 5.56.0+** (Template declaration tags baseline; legacy `{@const}` is banned)
-- SvelteKit: **SvelteKit 2.70.2+** (`defineEnvVars` moved to `@sveltejs/kit/env` at 2.70.0; the 2.70.2 baseline includes the Accept-header ReDoS fix, CVE-2026-66062)
-- SvelteKit 3: **SvelteKit 3.0.0-next.0..25** (Treat as separate generation; read `references/sveltekit-3-preview.md` for specific floors)
+- SvelteKit 3 (current): **SvelteKit 3.0.0+** — entry gates: Svelte `^5.57.1`, Vite `^8.0.12` (8.0.16+ on Windows), TypeScript 6, Node 22.17+; read `references/sveltekit.md`
+- SvelteKit 2 (legacy): **SvelteKit 2.70.2+** (`defineEnvVars` moved to `@sveltejs/kit/env` at 2.70.0; the 2.70.2 baseline includes the Accept-header ReDoS fix, CVE-2026-66062); read `references/sveltekit-legacy.md`
 
 **Critical Security Patch Floors:**
 - `hydratable(...)` with user-controlled data: require **Svelte 5.55.7+** (GHSA-f3cj-j4f6-wq85 — SSR XSS via insecure Promise serialization in supplied content)
 - DOM-clobbering XSS: require **Svelte 5.55.7+** (CVE-2026-42573, GHSA-rcqx-6q8c-2c42)
 - `transformError(...)` in boundaries: require **Svelte 5.53.5+** (CVE-2026-27902 unescaped comments XSS)
-- Form action and remote function origin checks: require **SvelteKit 2.70.0+** (in non-production `NODE_ENV` builds)
+- Form action and remote function origin checks: require **SvelteKit 2.70.0+** (in non-production `NODE_ENV` builds; inherited by SvelteKit 3.0.0)
 - Remote form file input deletion: require **SvelteKit 2.69.1+** (prototype pollution fix)
 - `Accept` header content negotiation: require **SvelteKit 2.70.2+** (quadratic backtracking / ReDoS fix — CVE-2026-66062, GHSA-29g2-3rmr-qm68; CVSS 5.3 moderate; affected ≤2.70.1; mitigated by platform header-length limits, but upgrade rather than rely on that)
-- Vite dev server `server.fs.deny` bypass on Windows (CVE-2026-53571, NTFS ADS / 8.3-name forms): require **Vite 8.0.16+** / **7.3.5+** / **6.4.3+** — the SvelteKit 3 peer floor `vite ^8.0.12` alone does not reach a patched 8.x version
+- Vite dev server `server.fs.deny` bypass on Windows (CVE-2026-53571, NTFS ADS / 8.3-name forms): require **Vite 8.0.16+** / **7.3.5+** / **6.4.3+** — the same releases also patched the launch-editor NTLMv2 hash disclosure (CVE-2026-53632), so the floor covers both; the SvelteKit 3 peer floor `vite ^8.0.12` alone does not reach a patched 8.x version
 
 For all minor feature version gates (e.g., specific runes, snippets, attachments, or remote functions), refer directly to the canonical topic files in `references/`.
 
@@ -218,6 +219,6 @@ Frame ecosystem choices on separate axes: maturity (`established` | `current` | 
 
 ## Freshness policy
 
-Validated baseline: **September 1, 2026** — Svelte **5.57.0**, SvelteKit **2.70.3** (latest) / **3.0.0-next.25** (next), `sv` **0.17.0** (latest) / **1.0.0-next.6** (next), `svelte-check` **4.7.6**, `svelte-language-server` **0.18.4**, `svelte2tsx` **0.7.61**, `Vite` **8.2.2**, `@sveltejs/vite-plugin-svelte` **7.3.0**. SvelteKit 3 preview coverage validated separately: `references/sveltekit-3-preview.md` tracks `3.0.0-next.25`; peer floors on that line unchanged (Svelte `^5.56.4`, Vite `^8.0.12`, `@sveltejs/vite-plugin-svelte` `^7.0.0`, TypeScript 6, Node 22.17+).
+Validated baseline: **October 2, 2026** — Svelte **5.57.1**, SvelteKit **3.0.0** (current stable) / **2.70.3** (latest of the legacy 2.x line), `sv` **1.0.1**, `svelte-check` **4.7.6**, `svelte-language-server` **0.18.4**, `svelte2tsx` **0.7.61**, `Vite` **8.3.2**, `@sveltejs/vite-plugin-svelte` **7.3.1**. SvelteKit 3 stable coverage lives in `references/sveltekit.md` (validated against `3.0.0-next.0`–`next.32` plus the stable release; peer floors: Svelte `^5.57.1`, Vite `^8.0.12`, `@sveltejs/vite-plugin-svelte` `^7.0.0`, TypeScript 6, Node 22.17+). The `next` dist-tag (`3.0.0-next.32`) remains the pre-release channel for post-3.0 work.
 
 Update version gates when official releases change minimums or feature status. Treat official docs and changelogs as authoritative; use monthly blog posts as discovery indexes. Review ecosystem entries more often than framework semantics — packages decay faster. When uncertain, state the version requirement rather than guess. For the refresh workflow, read `references/maintenance.md`.

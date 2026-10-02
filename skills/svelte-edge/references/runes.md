@@ -296,7 +296,7 @@ Options 1 and 2 share one module-wide state; the factory creates separate state 
 
 For typed shared state with subtree scoping, prefer `createContext()` (see [Context](#context)) over module-scoped state.
 
-In SvelteKit SSR, **never** put per-user mutable state in a shared server module — it leaks between requests. Use context, `locals`, cookies, or other request-scoped data for that. See `references/sveltekit.md`.
+In SvelteKit SSR, **never** put per-user mutable state in a shared server module — it leaks between requests. Use context, `locals`, cookies, or other request-scoped data for that. See `references/sveltekit.md` (SvelteKit 2: `references/sveltekit-legacy.md`).
 
 Passing a primitive `$state` variable to a function passes the current value, not the reactivity. To pass reactive primitives across boundaries, use a getter (e.g. `() => count`) or wrap in an object.
 
@@ -341,7 +341,7 @@ export const [getUserContext, setUserContext] = createContext<UserContext>();
 If the project version is below 5.40, fall back only when the user explicitly needs compatibility.
 
 Prefer context when shared state should be scoped to one subtree rather than process-wide module state.
-- `setContext` must run synchronously during component initialization, never inside `$effect` or after `await` (`set_context_after_init`). This restriction only applies with `experimental.async` enabled (it becomes unconditional by default in Svelte 6) — treat it as reliable from **Svelte 5.56.0+** only.
+- `setContext` must run synchronously during component initialization, never inside `$effect` or after `await` (`set_context_after_init`). This restriction only applies with `experimental.async` enabled (it becomes unconditional by default in Svelte 6) — treat it as reliable from **Svelte 5.56.0+** only, and note that since **5.57.1** the same error also fires when `setContext` is called after an `await` during SSR.
 
 ## Reactivity utilities (`svelte/reactivity`)
 

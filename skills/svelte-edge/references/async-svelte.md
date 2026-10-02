@@ -76,7 +76,7 @@ Important behavior:
 - `onerror={(error, reset) => ...}` is for reporting or handling boundary errors outside the `failed` snippet
 - Do not render a raw `error.message` in the `failed` snippet — rendering and SSR errors can carry server internals (paths, driver details, upstream URLs) in `message`/`stack`; show a generic message and report the raw error via `onerror` (SvelteKit `handleError` already sanitizes route-level errors)
 - Inside `onerror(error, reset)`, `await tick()` before calling `reset()` if resolving the error in place — calling it synchronously throws `svelte_boundary_reset_onerror`.
-- SvelteKit 2.54+ with Svelte 5.53+ can opt into framework rendering boundaries using `kit.experimental.handleRenderingErrors`; read `references/sveltekit.md` before recommending it
+- SvelteKit 2.54+ with Svelte 5.53+ can opt into framework rendering boundaries using `kit.experimental.handleRenderingErrors`; read `references/sveltekit-legacy.md` before recommending it (on SvelteKit 3 the flag is removed — rendering-boundary handling is unconditional; see `references/sveltekit.md`)
 - they do **not** catch errors from event handlers, timers, or unrelated async work outside render/effect flow
 
 ### Server rendering and `transformError`

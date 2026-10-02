@@ -2,8 +2,8 @@
 
 This file covers SvelteKit remote functions — an opt-in feature requiring `kit.experimental.remoteFunctions: true`.
 Do not apply patterns here to projects that have not opted in.
-For SvelteKit architecture (`load`, form actions, `+server`), see `references/sveltekit.md`.
-This file covers the **SvelteKit 2** experimental flag only. On the SvelteKit 3 preview line (`3.0.0-next.*`), remote functions have additional breaking changes (mandatory `form.fields.foo.as(...)`, restricted `event.url`/`event.params`/`event.route` access inside queries) — read `references/sveltekit-3-preview.md` in addition to this file once a project is on that line.
+For SvelteKit architecture (`load`, form actions, `+server`), see `references/sveltekit.md` (SvelteKit 2: `references/sveltekit-legacy.md`).
+This file covers the **SvelteKit 2** experimental flag and the semantics shared across lines. On the SvelteKit 3 line (`@sveltejs/kit@3.*`), remote functions are **still experimental** (the flag remains; `.remote.ts`/`.remote.js` files without it are a documented build error — #16247) and have additional breaking changes (mandatory `form.fields.foo.as(...)`, restricted `event.url`/`event.params`/`event.route` access inside queries) — read `references/sveltekit.md` in addition to this file once a project is on that line.
 
 ## What remote functions are
 
@@ -49,7 +49,7 @@ All remote-function version gates live here. Do not look for them in `SKILL.md`.
 - exported `RemoteFormEnhanceInstance` / `RemoteFormEnhanceCallback` and retained submit-field values: **SvelteKit 2.68+**
 - remote-form `submitted`: **SvelteKit 2.69+**
 
-These gates apply to the SvelteKit 2 experimental flag only. The SvelteKit 3 preview line has its own separate version floors for remote functions — see `references/sveltekit-3-preview.md`. Do not merge a `next.*` requirement into this list or vice versa.
+These gates apply to the SvelteKit 2 experimental flag and to the shared feature surface. The SvelteKit 3 line has its own separate deltas for remote functions — see `references/sveltekit.md`. Do not merge a `3.*` requirement into this list or vice versa.
 
 **Security patch floors:**
 - remote forms that manipulate file inputs: require **SvelteKit 2.69.1+**
@@ -61,7 +61,7 @@ In `.remote.ts` / `.remote.js` files, import `query`, `form`, `command`, `preren
 
 Remote files can live anywhere under `src` except `src/lib/server`.
 
-`getRequestEvent()` is a general server helper, not a remote-only API. This file documents its remote-function restrictions only; see `references/sveltekit.md` for ordinary server-side usage.
+`getRequestEvent()` is a general server helper, not a remote-only API. This file documents its remote-function restrictions only; see `references/sveltekit.md` (SvelteKit 2: `references/sveltekit-legacy.md`) for ordinary server-side usage.
 
 Keep `$app/server` imports out of client-only modules except where remote function files require them.
 
@@ -80,7 +80,7 @@ Remote queries are Promise-like and can be awaited in any context: templates, co
 
 The short-lived `.run()` API was removed in **SvelteKit 2.61**. Never generate `query.run()` for a current project.
 
-On the SvelteKit 3 preview line (**3.0.0-next.10+**, #16452), `event.url` / `event.params` / `event.route` become inaccessible from inside a `query` body entirely (not just pointing at the calling page) — this is stricter than the 2.x behavior below. Check `references/sveltekit-3-preview.md` before writing query bodies that read request context on that line.
+On the SvelteKit 3 line (since `3.0.0-next.10`, #16452), `event.url` / `event.params` / `event.route` become inaccessible from inside a `query` body entirely (not just pointing at the calling page) — this is stricter than the 2.x behavior below. Check `references/sveltekit.md` before writing query bodies that read request context on that line.
 
 ## Live queries
 
@@ -109,7 +109,7 @@ Use live queries only for genuinely long-lived data, not as a fashionable replac
 
 For file fields, set `enctype="multipart/form-data"`. Use SvelteKit **2.69.1+** when remote forms manipulate file inputs — that patch fixes prototype pollution in file-input deletion.
 
-On the SvelteKit 3 preview line (**3.0.0-next.10+**, #16331), every remote form field must be created with `myForm.fields.foo.as(...)` — a hand-built field object that was tolerated on 2.x fails validation there. Treat `.as(...)` as mandatory, not stylistic, once a project is on `3.0.0-next.10` or later; see `references/sveltekit-3-preview.md`.
+On the SvelteKit 3 line (since `3.0.0-next.10`, #16331), every remote form field must be created with `myForm.fields.foo.as(...)` — a hand-built field object that was tolerated on 2.x fails validation there. Treat `.as(...)` as mandatory, not stylistic, once a project is on SvelteKit 3; see `references/sveltekit.md`.
 
 ## Remote function gotchas
 
@@ -117,10 +117,10 @@ These are correctness landmines documented in the official docs:
 
 - **Query caching**: cache keys come from serialized arguments. Object/map/set members are sorted for stable keys; use an array when order must affect identity. Do not manually sort object keys.
 - **Batch queries**: `query.batch` combines calls into one server request. `requested(...)` supports batch queries from **2.59+**.
-- **`getRequestEvent()` inside remote functions**: headers cannot be set (except cookies inside `form` and `command` kinds), and `route` / `params` / `url` reflect the *calling page*, not the remote endpoint. Critical for auth checks — do not assume `event.route.id` points at the remote function file. On the SvelteKit 3 preview line, these three properties are inaccessible inside a `query` body rather than merely reflecting the calling page — see the note above.
+- **`getRequestEvent()` inside remote functions**: headers cannot be set (except cookies inside `form` and `command` kinds), and `route` / `params` / `url` reflect the *calling page*, not the remote endpoint. Critical for auth checks — do not assume `event.route.id` points at the remote function file. On the SvelteKit 3 line, these three properties are inaccessible inside a `query` body rather than merely reflecting the calling page — see the note above.
 - **Sensitive form fields use the `_` prefix convention**: fields named with a leading underscore (e.g. `_password`) are not echoed back to the client on validation reload. Use this for any field that should not survive a round trip.
 - **Unchecked booleans are absent**: make checkbox booleans optional/defaulted in the validation schema. SvelteKit 2.66+ warns about this common error.
-- **Remote validation failures**: invalid remote function arguments usually mean stale clients or hostile input. Use `handleValidationError` when you need a controlled generic response; avoid `unchecked` unless you accept the security tradeoff.
+- **Remote validation failures**: invalid remote function arguments usually mean stale clients or hostile input. On SvelteKit 2, use `handleValidationError` when you need a controlled generic response (removed on the SvelteKit 3 line — validation errors reach `handleError` with `kind: 'validation'` there); avoid `unchecked` unless you accept the security tradeoff.
 - **Redirects**: `redirect(...)` works in `query`, `form`, and `prerender`, but not in `command`.
 
 ## Single-flight mutations
@@ -136,17 +136,17 @@ Remote `form` and `command` handlers can refresh or set query data in the same s
 
 Hydratable transport means remote results can carry richer types than JSON; do not add custom JSON serialization without a concrete interoperability requirement.
 
-On the SvelteKit 3 preview line, page-level `refreshAll()` (from `$app/navigation`) also refreshes active remote functions by default; pass `{ includeLoadFunctions: false }` to refresh remote functions only. This is distinct from the query-level `.refresh()` / `requested(...).refreshAll()` shorthands documented above, which exist on both lines. See `references/sveltekit-3-preview.md`.
+On the SvelteKit 3 line, page-level `refreshAll()` (from `$app/navigation`) also refreshes active remote functions by default; pass `{ includeLoadFunctions: false }` to refresh remote functions only. This is distinct from the query-level `.refresh()` / `requested(...).refreshAll()` shorthands documented above, which exist on both lines. Since `3.0.0-next.27` (#16892), a client-requested single-flight mutation errors when the server does not accept it via `requested(...)` — the server can explicitly ignore refreshes. See `references/sveltekit.md`.
 
 ## Hard reminders
 
 - Never generate `query.run()` — removed in SvelteKit 2.61
 - Never apply remote function patterns to a project without `kit.experimental.remoteFunctions: true` — a green build is not proof the flag is set (see the failure mode above)
-- `getRequestEvent()` inside remote functions: `route`/`params`/`url` reflect the **calling page**, not the remote file (on SvelteKit 2); inaccessible entirely inside `query` bodies on the SvelteKit 3 preview line
+- `getRequestEvent()` inside remote functions: `route`/`params`/`url` reflect the **calling page**, not the remote file (on SvelteKit 2); inaccessible entirely inside `query` bodies on the SvelteKit 3 line
 - `enhance` callback shape changed in 2.61 — never use the old `{ form, data, submit }` shape
 - `redirect(...)` works in `query`, `form`, `prerender` — **not** in `command`
 - Sensitive fields: use `_` prefix to prevent them echoing back to the client
 - Checkbox booleans: make them optional/defaulted — unchecked fields are absent from `FormData`
 - For file inputs in remote forms: require SvelteKit **2.69.1+** (security patch)
 - `requested(...)` must use a bounded `limit`; never allow unbounded client-requested refresh work
-- Project on `3.0.0-next.*` -> also read `references/sveltekit-3-preview.md`; do not assume every gate/API above carries over unchanged
+- Project on `@sveltejs/kit@3.*` -> also read `references/sveltekit.md`; do not assume every gate/API above carries over unchanged

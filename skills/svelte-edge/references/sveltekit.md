@@ -1,286 +1,258 @@
-# SvelteKit Defaults, State Safety, Routing, Forms, and Stable Architecture
+# SvelteKit 3
 
-Use this file for SvelteKit architecture and behavior.
-Remote functions are a separate opt-in concern — see `references/remote-functions.md`.
-This file covers **SvelteKit 2** only. Once a project resolves `@sveltejs/kit@3.0.0-next.*`, or the user explicitly asks about SvelteKit 3 preview or a SvelteKit 2→3 migration, switch to `references/sveltekit-3-preview.md` — several APIs described below (config location, shallow routing, `invalidateAll`, env vars) change shape on that line. The SvelteKit 2→3 migration workflow lives in `references/migration.md`.
+**Status:** current generation — stable since **2026-10-01** (`@sveltejs/kit@3.0.0`, official announcement "SvelteKit 3 is here"). This is the canonical SvelteKit reference: default to it for new projects and for any project resolving `@sveltejs/kit@3.*`. SvelteKit 2 guidance lives in `references/sveltekit-legacy.md`; the 2→3 workflow lives in `references/migration.md`.
+
+Facts verified against the published `@sveltejs/kit@3.0.0` package (exports map and type declarations) and current official docs. Verification method: `references/maintenance.md`.
 
 ## Contents
 
-- [Stable architecture and server safety](#stable-default-architecture)
-- [Types, loading, and state](#types-and-props)
-- [Forms and server routes](#form-actions)
-- [Project configuration and environment variables](#project-configuration)
-- [Navigation and UI state](#navigation-apis)
-- [Errors and redirects](#error-and-redirect-helpers)
+- [Requirements](#requirements)
+- [Configuration](#configuration)
+- [Project layout](#project-layout)
+- [Environment variables](#environment-variables)
+- [Navigation and state](#navigation-and-state)
+- [Reloading data](#reloading-data)
+- [Snapshots](#snapshots)
+- [Forms and errors](#forms-and-errors)
+- [Remote functions (experimental)](#remote-functions-experimental)
+- [Service workers and manifest](#service-workers-and-manifest)
+- [Server and runtime behavior](#server-and-runtime-behavior)
+- [Generation fences](#generation-fences)
+- [Sync and check noise](#sync-and-check-noise)
 
-## Stable default architecture
+## Requirements
 
-For most SvelteKit apps, default to:
-- `load` functions for route data
-- form actions for form submissions and mutations tied to forms
-- `+server` files for HTTP endpoints and server-only request handling
-- `$app/state` for page/navigation state access in modern SvelteKit
-- generated `./$types` for route-safe typing
+- Node **22.17+**, TypeScript **6+**, Svelte **^5.57.1**, Vite **^8.0.12** (Rolldown 1.0), `@sveltejs/vite-plugin-svelte` **7+**
+- a kit-3-line adapter major: `adapter-auto` 8, `adapter-node` 6, `adapter-static` 4, `adapter-vercel` 7, `adapter-cloudflare` 8, `adapter-netlify` 7 — these peer on `@sveltejs/kit@^3.0.0-next.0`, so SvelteKit 2 projects must stay on the older adapter majors
+- `@opentelemetry/api ^1.0.0` as an optional peer, consumed by `kit.tracing`
+- On Windows, require Vite **8.0.16+**: the `^8.0.12` peer floor allows 8.0.12–8.0.15, which are vulnerable to CVE-2026-53571 (`server.fs.deny` bypass via NTFS ADS / 8.3-name forms)
+- 3.0.0 inherits every current SvelteKit security fix — the per-fix version floors in `SKILL.md` (origin checks, Accept-header ReDoS) apply to the SvelteKit 2 line
+- Upgrade framework, adapter, and toolchain in one branch. After upgrading: `svelte-kit sync`, `npx sv check`, unit/component tests, E2E, production build, deployment smoke test
 
-Do not present remote functions as the baseline answer for all projects.
+## Configuration
 
-## Server-safety doctrine
-
-### Avoid shared mutable state on the server
-Do not store per-request or per-user mutable state in top-level server module variables.
-A SvelteKit server process can handle many users, so shared mutable module state can leak data between requests.
-
-Prefer:
-- `event.locals`
-- cookies
-- request-scoped data
-- DB/session lookups
-- server-only helpers that read from request context
-
-### No side effects in `load`
-Treat `load` as data loading.
-Do not do writes, background mutations, or stateful side effects in `load`.
-
-If you need side effects or writes, use:
-- form actions
-- `+server` handlers
-- explicit server functions where appropriate
-
-### Global state vs context vs request scope
-
-Use shared module state only for client-side state or data that is not specific to an individual user/request.
-Use `createContext()` when state should be scoped to a subtree and passed through a component tree without prop drilling.
-Use `event.locals`, cookies, DB/session lookups, or other request-scoped state for user-specific server data.
-
-If state must not leak between users, do not put it in a shared server module.
-
-## Types and props
-
-Use generated route types. Note that SvelteKit types the `form` prop (returned from Form Actions) as `ActionData | null`. SvelteKit passes `null` on the initial GET request. When forwarding the `form` prop to child components that expect optional properties (`ActionData | undefined`), convert `null` to `undefined` explicitly (`form={form ?? undefined}`).
-
-```svelte
-<script lang="ts">
-	import type { PageProps } from './$types';
-
-	let { data, form }: PageProps = $props();
-</script>
-```
-
-For route params in components, use `page.params` from `$app/state` when needed.
-In **SvelteKit 2.24+**, pages also receive a generated `params` prop through `PageProps`; before that, do not invent a page `params` prop.
-
-In newer SvelteKit, route params with matchers are narrowed more precisely in `$app/types`, `$app/state`, and hooks. Prefer the generated types instead of hand-rolled param unions.
-
-## Loading data
-
-Use `+page.server.ts` / `+layout.server.ts` when data needs secrets, private env vars, cookies, or server-only modules.
-Use universal `+page.ts` / `+layout.ts` when the load can safely run on server and client.
-
-Key load rules:
-- `load` is for reads, not writes or side effects.
-- Use `depends(...)` to declare custom invalidation keys and `$app/navigation` `invalidate(...)` / `invalidateAll()` to rerun load.
-- A rerun updates `data` but does not recreate the component; local component state is preserved unless you reset it or use `{#key ...}`.
-- Streaming promises are useful for slow non-critical data, but do not hide auth or required validation behind late streams.
-- In `load`, prefer `url.searchParams.get('key')` over reading `url.search` or `url.href`. SvelteKit tracks individual `.get()` calls, preventing unnecessary reruns when unrelated query parameters change.
-- When returning raw promises in server `load` for streaming, attach a `.catch(() => {})` to each. An unhandled rejection on a lazy promise before rendering starts will crash the Node process.
-
-`invalidateAll()` is the SvelteKit 2 API for rerunning every active load function.
-
-### Auth and parent data
-
-Do not assume a layout `load` protects every child route.
-Layout loads do not rerun on every client navigation, and layout/page loads run concurrently unless a child explicitly awaits `parent()`.
-
-For protected data, prefer:
-- hooks for broad route families before any load runs
-- route-specific `+page.server.ts` guards for page-only protection
-- explicit `await parent()` only when the child truly depends on parent data
-
-Never put authorization-critical logic in a layout load while child loads can run protected work independently.
-
-When using `await parent()`, initiate independent fetches first and await `parent()` only where subsequent logic depends on its result. Placing it at the top of a load function serializes all work into a waterfall.
-
-### SSR fetch and cookies
-
-During SSR, SvelteKit's `fetch` forwards cookies automatically for same-origin and more-specific-subdomain requests, but drops them for sibling subdomains (e.g. `app.example.com` → `api.example.com`) and parent domains — the server can't infer a cookie's original domain scope safely. If you forward manually in `handleFetch` (e.g. to a sibling API), scope it to a hardcoded allowlist of first-party origins you operate, forwarding only the specific cookie that API needs via `event.cookies.get(...)` — never the whole `Cookie` header to a request-derived, rewritten, or third-party URL.
-
-## `$app/state`
-
-Prefer `$app/state` in modern SvelteKit for route/page state instead of older patterns.
-Do not introduce deprecated `$app/stores` in new Svelte 5 code. Keep it only for Svelte 4 compatibility or an untouched legacy file.
-
-```svelte
-<script lang="ts">
-	import { page } from '$app/state';
-</script>
-
-<p>Current slug: {page.params.slug}</p>
-```
-
-## Form actions
-
-Use form actions as the stable default for user-submitted mutations tied to forms.
-This is usually the cleanest baseline for auth, profile updates, settings, and CRUD forms.
-
-Use `fail(...)` for validation errors that should return form data and status.
-Use `redirect(...)` for successful flows that should move the user.
-`use:enhance` progressively enhances POST forms that target `+page.server` actions; do not use it for GET forms or arbitrary `+server` endpoints.
-If an action sets or deletes cookies used by `handle` to populate `event.locals`, update `event.locals` inside the action too. `handle` does not rerun between the action and the following load.
-Set cookie attributes explicitly: `httpOnly: true`, `secure: true` (HTTPS), `sameSite: 'lax'`, `path: '/'`. Form actions are not an auth mechanism — validate inputs and authenticate/authorize yourself; SvelteKit's default production origin check covers form-style CSRF, not blanket API CSRF.
-
-When implementing a custom `onsubmit` handler without `use:enhance`, use `deserialize(await response.text())` from `$app/forms` instead of `response.json()`. SvelteKit serializes action data with `devalue`, which supports types that JSON does not (Dates, BigInts, cyclical references).
-
-The default action runs on a plain `POST` to the page path with no query string. `?/` (empty action name) 404s, and `?/default` 500s because `default` is a reserved action name — do not use either when triggering the default action via raw HTTP or in tests.
-
-## `+server` routes
-
-Use `+server.ts` / `+server.js` for server-only handlers, APIs, webhooks, and custom HTTP behavior. `+server` routes get no automatic authentication or API CSRF protection — they are raw handlers, so validate input and authenticate/authorize in the handler (typically via `event.locals` populated in `hooks.server.js`).
-
-To read an imported asset from the filesystem at runtime on the server (e.g. a bundled text or binary file), use `read(asset)` from `$app/server` (**SvelteKit 2.4.0+**). It returns a `Response`; this is a general server utility, not a remote-function feature.
-
-## Security floors
-
-Because this file teaches the APIs they protect (form actions, `+server`, content negotiation), the SvelteKit 2 security floors are surfaced here too; the authoritative inventory stays in `SKILL.md` → Critical Security Patch Floors.
-
-- Cross-site request (CSRF) and remote-function origin checks: require **SvelteKit 2.70.0+** — builds with a non-production `NODE_ENV` previously compiled origin enforcement out (fix, sveltejs/kit#16313). `csrf.checkOrigin` defaults to `true`; it is deprecated in favor of `csrf.trustedOrigins`, but the check stays on by default.
-- `Accept`-header content negotiation: require **SvelteKit 2.70.2+** (quadratic backtracking / ReDoS — CVE-2026-66062, GHSA-29g2-3rmr-qm68; affects ≤2.70.1).
-
-
-## Project configuration
-
-SvelteKit 2 still supports `svelte.config.js`. Since **2.62+**, configuration may instead live directly in the `sveltekit({...})` Vite plugin call, and `sv@0.16+` uses that layout for new projects.
+All SvelteKit and Svelte configuration lives in the `sveltekit({...})` Vite plugin call — `svelte.config.js` is no longer supported. If configuration is passed to `sveltekit(...)`, any leftover `svelte.config.js` is ignored rather than merged; never split options across both.
 
 ```ts
 // vite.config.ts
-import adapter from '@sveltejs/adapter-auto';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-	plugins: [sveltekit({ adapter: adapter() })]
+	plugins: [sveltekit({
+		csrf: { trustedOrigins: ['https://checkout.stripe.com'] },
+		paths: { origin: 'https://example.com' },
+		tracing: { server: true },
+		output: { linkHeaderPreload: true }
+	})]
 });
 ```
 
-In plugin configuration, SvelteKit options such as `adapter` sit alongside Svelte compiler options; there is no outer `kit` property. If configuration is passed to `sveltekit(...)`, any `svelte.config.js` is ignored rather than merged.
+- `paths.origin` sets the deployment origin used for prerendering and origin checks (replaces the adapter-node `ORIGIN` env var).
+- `csrf.trustedOrigins`: explicit allowlist of full origins (protocol + host) permitted to submit cross-origin forms. CSRF checks run only in production. Remote functions strictly require same-origin and ignore `trustedOrigins` — remote endpoints are internal implementation details.
+- `tracing` is a top-level option (OpenTelemetry span emission; requires `@opentelemetry/api`).
+- `router.resolution: 'server'` is incompatible with `router.type: 'hash'` or `output.bundleStrategy: 'inline' | 'single'`.
+- `csp.directives`: setting `'require-trusted-types-for': ['script']` requires `'svelte-trusted-html'` in `'trusted-types'` (and `'sveltekit-trusted-url'` if `serviceWorker.register` is true) — but only when client-side code is actually shipped: builds where all pages have `csr: false` don't need the policy.
+- A universal `config` export wins over a server-only `config` export on the same route.
 
-- New project on SvelteKit 2.62+ -> prefer the current `sv` scaffold layout in `vite.config`
-- Existing project -> preserve its coherent config location unless migration is requested
-- Never split options across both files
-- Do not call `svelte.config.js` removed or invalid on SvelteKit 2 — that removal only happens on the SvelteKit 3 preview line; read `references/sveltekit-3-preview.md` for that line's config shape rather than guessing forward from this section
+TypeScript config extends the generated `$app/tsconfig` (written to `node_modules/$app/tsconfig.json`); the project owns its `include` array, and `compilerOptions.types` must include `$app/types` when set.
 
-## Server-only modules and environment variables
+## Project layout
 
-Use `$lib/server` for server-only code that must never enter the client bundle.
+### Subpath imports (`#lib`)
 
-### SvelteKit 2 default
+The `$lib` alias and `kit.files.lib` are gone. Declare `#lib` in `package.json` using Node's built-in subpath imports:
 
-Use `$env/static/private` / `$env/static/public` for build-time values and `$env/dynamic/private` / `$env/dynamic/public` for runtime values. Only use public env modules for values safe to expose to the browser; public means client-readable.
+```json
+{
+	"imports": {
+		"#lib": "./src/lib/index.js",
+		"#lib/*": "./src/lib/*"
+	}
+}
+```
 
-### Explicit environment variables (experimental)
+Import as `import Component from '#lib/Component.svelte'` — specifiers must use a Node-style `.js` extension even when the target is a `.ts` file (`#lib/data.js`). TypeScript maps `.js` specifiers to `.ts` sources but does not probe extensions on `imports`-map results: under the generated `moduleResolution: "bundler"`, an extensionless import fails `svelte-check` with `Cannot find module '#lib/...'`. SvelteKit writes no `#lib` entry into the generated `paths` — the `package.json` `imports` map is the only mechanism. Keep the barrel target (`./src/lib/index.js`) existing, or drop that entry if the project has no barrel.
 
-SvelteKit **2.63+** offers an opt-in preview of the SvelteKit 3 model:
+### Param matchers (`src/params.ts`)
 
-- enable `experimental.explicitEnvironmentVariables`
-- declare variables in `src/env.ts` with `defineEnvVars` from `@sveltejs/kit/env` (canonical since **SvelteKit 2.70+**; the earlier `@sveltejs/kit/hooks` re-export still works but is deprecated — import from `@sveltejs/kit/env` in new code)
-- import declared values from `$app/env/private` or `$app/env/public`
-- use `$app/env` instead of `$app/environment`
-- configure validation/transforms, `public`, `static`, and descriptions per variable
+All param matchers live in a single `src/params.ts` (or `.js`) file using the `defineParams` helper:
 
-This is an edge-mode recommendation only. `$env/*` and `$app/environment` remain the SvelteKit 2 default, but official docs say they will be removed in SvelteKit 3. Explain that migration horizon without pretending the experimental replacement is already mandatory. For the actual SvelteKit 3 preview `defineEnvVars` shape, read `references/sveltekit-3-preview.md` — do not extrapolate its exact API from this SvelteKit 2 opt-in section.
+```ts
+// src/params.ts
+import { defineParams } from '@sveltejs/kit/params';
+import * as v from 'valibot';
 
-Never import private env or `$lib/server` modules from client/shared code.
+export const params = defineParams({
+	// Standard Schema variant (e.g. Valibot, Zod)
+	integer: v.pipe(v.string(), v.toNumber()),
+	// Function variant — return the param to accept, undefined to reject
+	fruit: (param: string) => (param === 'apple' || param === 'orange' ? param : undefined)
+});
+```
 
-## Build and prerender additions
+When a matcher returns a parsed value or uses a Standard Schema, route `params` are typed with the parsed output type. Callable Standard Schemas are not treated as function param matchers.
 
-- With **SvelteKit 2.66+**, adapter precompression also covers prerendered `.md` and `.mdx` files.
-- With **SvelteKit 2.67+**, use `prerender.handleInvalidUrl` to fail, warn, ignore, or custom-handle URLs the crawler cannot parse. Do not misuse `handleHttpError` for this case.
-- **Prerender Crawler Rule:** Do not use relative hash links (e.g., `href="#work"`) inside shared layout headers/footers. During static crawling/prerendering, SvelteKit resolves relative links against the current path (e.g., `/projects/01#work` on page `/projects/01`). If the target ID does not exist on that subpage, the build will crash. Use root-relative links instead (e.g., `href="/#work"`).
+### Server-only directories
 
-## Navigation APIs
+A `server/` path segment makes a directory server-only anywhere inside the project (except `src/routes` and `$lib`). `$lib/server` remains the standard home for server-only code; never import it (or `$app/env/private`) from client or shared code.
 
-Use `$app/navigation` for programmatic routing and preloading when needed.
-Relevant functions include:
-- `goto(...)`
-- `preloadData(...)`
-- `preloadCode(...)`
-- `invalidate(...)`
+## Environment variables
 
-For external URLs, use normal browser navigation instead of `goto(...)`.
+Declare variables in `src/env.ts` with `defineEnvVars` from `@sveltejs/kit/env`; import them from `$app/env/private` or `$app/env/public` (never both server/client-crossing). Use `$app/env` in place of the old `$app/environment`.
 
-## Shallow routing
+```ts
+// src/env.ts
+import { defineEnvVars } from '@sveltejs/kit/env';
+import { building } from '$app/env';
+import * as v from 'valibot';
 
-Use shallow routing when UI state should update browser history without full navigation.
-This is especially useful for modal/detail flows.
+export const variables = defineEnvVars({
+	// Secret, evaluated at startup, required
+	POSTGRES_URL: {},
 
-Core APIs:
-- `pushState(...)`
-- `replaceState(...)`
-- `page.state`
+	// Safe for browser exposure
+	PUBLIC_KEY: { public: true, schema: v.string() },
 
-Use this when the user needs back-button-friendly UI state like in-page modals.
+	// Inlined at build time for dead-code elimination
+	BUILD_FLAG: { public: true, static: true, schema: v.boolean() },
+
+	// Optional during build, required at runtime
+	SECRET: { schema: building ? v.optional(v.string()) : v.string() },
+
+	// Function validators are supported in addition to Standard Schemas
+	TOKEN: { schema: (v) => (typeof v === 'string' && v.length >= 32 ? v : undefined) }
+});
+```
+
+Variables declared `static` must be present at build time — the build fails with `env_invalid` naming the missing variable (harness-verified); non-static secrets are validated at startup instead. Variables that may legitimately be absent during build need the optional-`building` validator shape shown above. Never import from `$env/*` in new code: it exists only as deprecated compatibility aliases for dependencies that still import it.
+
+## Navigation and state
+
+```ts
+import { goto } from '$app/navigation';
+
+// open a modal without a full navigation, keep history entry
+goto('/photos/42', { shallow: true, state: { showModal: true } });
+
+// same, but restore state after a reload
+goto('/photos/42', { shallow: true, state: { showModal: true }, persistState: true });
+
+// replace history entry instead of pushing a new one
+goto('/photos/42', { shallow: true, state: { showModal: true }, replace: true });
+```
+
+- Default preserves scroll/focus; `reset: true` intentionally resets them. State survives reload only with `persistState: true`.
+- `goto` rejects destinations that don't resolve to an internal route — use `window.location.href` for external navigation.
+- `page.state` is strictly typed: declare each key on `App.PageState` in `app.d.ts`.
+- `page.url` and its search parameters are readonly — copy with `new URL(page.url)` before mutating.
+- Navigation `delta` exists only for `popstate` navigations — guard it before use.
+- Link attributes disable with `false`, not `"off"`: `data-sveltekit-*="false"`. `data:` protocol URLs count as external.
+- Re-navigating to the current URL re-runs all `load` functions and queries.
+
+## Reloading data
+
+```ts
+import { refreshAll, invalidate, preloadCode } from '$app/navigation';
+
+await invalidate('app:posts');                          // rerun only load/queries depending on key
+await refreshAll();                                      // rerun every active load function, query, and remote function
+await refreshAll({ includeLoadFunctions: false });       // refresh remote functions only, skip load reruns
+
+await preloadCode('/blog/[slug]');                       // takes a Route ID, without paths.base
+```
+
+`refreshAll()` does not reset `page.state`; deprecated `invalidateAll()` does. `preloadData(...)` can resolve to `{ type: 'error', status, error }` — handle the error result. In load functions, reruns also fire when the number of values of a tracked search parameter changes, not only when a value differs.
 
 ## Snapshots
 
-Use snapshots to preserve ephemeral DOM state such as unsaved form input across navigation/back-forward flows.
-Export `snapshot` from `+page.svelte` or `+layout.svelte` with `capture` and `restore`.
+Use the `snapshot()` helper from `$app/navigation`:
 
 ```svelte
 <script lang="ts">
+	import { snapshot } from '$app/navigation';
+
 	let comment = $state('');
 
-	export const snapshot = {
+	snapshot({
 		capture: () => comment,
 		restore: (value: string) => (comment = value)
-	};
+	});
 </script>
 
 <textarea bind:value={comment}></textarea>
 ```
 
-## Error and redirect helpers
+`snapshot({ id?, capture, restore, reset? })` must run during component initialization and stays active while the component is mounted. Register several per component — unique per call site or via explicit `id` — and the optional `reset` callback runs on navigations with no captured value. The page-level `export const snapshot` is deprecated.
 
-Use `error(...)` and `redirect(...)` from `@sveltejs/kit` for server-side route control flow.
-Do not fake these with ordinary thrown strings or custom response objects when the built-ins are the right fit.
+## Forms and errors
 
-### Route-level vs component-level errors
+```ts
+import { error, redirect } from '@sveltejs/kit';
 
-Use `+error.svelte` and `error(...)` for route-level/server request failures.
-Use `<svelte:boundary>` for component-level async or rendering failures inside a subtree.
+// error() requires a string message as 2nd argument; details require an App.Error extension
+error(404, 'Post not found', { code: 'POST_NOT_FOUND' });
 
-With **SvelteKit 2.54+** and **Svelte 5.53+**, `kit.experimental.handleRenderingErrors` can wrap route components in server rendering boundaries. This is experimental opt-in, not the default. Rendering errors go through `handleError` and the nearest `+error.svelte`; because rendering may already be in progress, read the passed `error` prop rather than expecting `page.error` to update.
+// External redirects MUST specify { external: true }
+throw redirect(307, 'https://checkout.stripe.com', { external: true });
+```
 
-Route-level errors remain the default answer for request/load failures. Do not enable rendering-error handling merely because a project lacks the flag.
+- custom keys in the `details` object require extending `App.Error` in `app.d.ts` — without the extension the third parameter type collapses to `never` and `svelte-check` rejects the call.
+- `handleError` can return `{ status, message }` to override the response status code; `App.Error` always includes `status: number`.
+- `redirect(...)` to an external URL throws unless `{ external: true }` or the origin is listed in `csrf.trustedOrigins`.
+- Cross-origin form submissions without a `Content-Type` header are rejected.
+- Form action `fail(...)` status codes surface directly as the HTTP response status. The page `form` prop's `error` is typed `App.Error | undefined`.
+- `invalid(...issues)` throws a `ValidationError` (accepts strings or `StandardSchemaV1.Issue` objects). `isValidationError` and `ValidationError` are imported from the root `@sveltejs/kit` package.
+- Enhanced cross-page form actions navigate to the action page on success **and** failure, matching native form behavior; enhanced form results cannot navigate to another origin unless they are redirects.
+- Every error runs through the `handleError` hook; stack traces for internal errors like 404s are hidden. Rendering errors are handled unconditionally: route components are wrapped in server rendering boundaries, the nearest `+error.svelte` renders at the depth it occupies (typed via generated `ErrorProps`), and a failed `<svelte:boundary>` resets on client navigation.
+- `RequestEvent` and `Cookies` are imported from the root `@sveltejs/kit` package.
 
-## Remote functions
+## Remote functions (experimental)
 
-Remote functions are an opt-in SvelteKit feature for projects that explicitly enable `kit.experimental.remoteFunctions: true`.
-They are not the stable default and are not covered here.
+Remote functions are **experimental on the stable line**: they require `kit.experimental.remoteFunctions: true` plus `compilerOptions.experimental.async: true`, and `.remote.ts`/`.remote.js` files without the flag are a build error. Stabilizing them is the top post-3.0 priority per the release announcement. See `references/remote-functions.md` for the shared semantics; the SvelteKit 3 deltas:
 
-→ Read `references/remote-functions.md` when the user asks about remote functions, or the project contains `.remote.ts` / `.remote.js` files, or `kit.experimental.remoteFunctions` is enabled.
+- Every remote form field must be created with `form.fields.foo.as(...)` — hand-built field objects fail validation. `.as('radio', value, checked)` and `.as('checkbox', value, checked)` accept the checked state as a third argument so these inputs reset to it after submission.
+- Inside a `query`, `event.url`/`event.params`/`event.route` are inaccessible.
+- `.run()` does not exist — use `await` or async iteration.
+- `handleValidationError` does not exist — remote validation errors reach `handleError` with `kind: 'validation'`.
+- Remote function types (`query`, `form`, `command`, `prerender`, `requested`, `RemoteQuery`, `RemoteForm`, …) are exported from `$app/server`; `isValidationError` comes from the root `@sveltejs/kit` package.
+- Remote form `validate({ all })` validates untouched fields too; `field.touched()` reports per-field dirtiness.
+- A client-requested single-flight mutation errors when the server does not accept it via `requested(...)`; the server can explicitly ignore refreshes.
+- `query.live` streams carry periodic SSE keep-alive comments and an explicit `Accept` header so proxies do not buffer them; stream cancellation is observable via the generator's `request.signal`.
 
-→ On the SvelteKit 3 preview line, also cross-check `references/sveltekit-3-preview.md` in addition to `remote-functions.md` once a project is on `3.0.0-next.*`.
+## Service workers and manifest
 
-## `getRequestEvent()`
+```ts
+// src/service-worker/index.ts
+import { self } from '$app/service-worker';
+import { version } from '$app/env';
+import { assets, immutable, prerendered, routes } from '$app/manifest';
+```
 
-Use `getRequestEvent()` (**SvelteKit 2.20+**) in server-side contexts — `+server.ts`, hooks, and server-only helpers — when it meaningfully simplifies access to the active request event.
-It is request-scoped server logic, not a general client-side primitive.
-For `getRequestEvent()` behavior inside remote functions specifically, see `references/remote-functions.md`.
+- `$app/service-worker` exports `self` (typed `ServiceWorkerGlobalScope`) — nothing else. Asset metadata comes from `$app/manifest`: `assets`, `immutable`, `prerendered`, and `routes` (route entries carry `page` and `endpoint` booleans; there is no `build`/`files` pair — account for the new shapes rather than renaming old imports).
+- `version` comes from `$app/env` (alongside `browser`, `building`, `dev`).
+- Service workers register as modules (`type: 'module'`) — use module imports, not `importScripts(...)`. `$app/paths` is importable inside service workers.
+- A TypeScript service worker is its own TS project: `src/service-worker/tsconfig.json` extending `$app/tsconfig/service-worker`, excluded from the root tsconfig; move a flat `src/service-worker.ts` to `src/service-worker/index.ts`.
 
-## Link options
+## Server and runtime behavior
 
-Remember that SvelteKit supports link options like preloading behavior on navigational links.
-Use them when route transitions benefit from prefetching, but do not spam them everywhere by default.
+- Query parameters beginning with `x-sveltekit-` are rejected — renamespace custom params that collide with this reserved prefix.
+- `json(...)` and `text(...)` from `@sveltejs/kit` are deprecated — use `Response.json(...)` and `new Response(...)`.
+- `+server.js` supports the `QUERY` HTTP method.
+- `getRequest()` and `setResponse()` from `@sveltejs/kit/node` are synchronous.
+- `cookies.parse(...)` parses raw cookie headers; cookie options are optional (cookie v2 defaults apply, names ASCII-only, default `path: '/'`).
+- Production sourcemaps are supported.
+- Dev-server CORS for static assets is delegated to Vite — configure `server.cors.origin` in `vite.config` for cross-origin dev access.
+- Deployment-change detection polls hourly by default (`version.pollInterval: 3600000`) and also triggers on data/remote/form-action responses, tab focus, and visibility change.
 
-## Hard reminders
+## Generation fences
 
-- Stable first: `load`, actions, `+server`, `$app/state`
-- New Svelte 5 project -> `$app/state`, never deprecated `$app/stores`
-- Avoid shared mutable server state
-- Keep `load` pure and side-effect-free
-- Use shallow routing and snapshots when UI state/history behavior matters
-- Remote functions are opt-in only — see `references/remote-functions.md`
-- Keep stable `$env/*` defaults for SvelteKit 2; present explicit env vars only as an opt-in preview of the SvelteKit 3 model
-- Keep all configuration in one place; Vite-plugin config wins and causes `svelte.config.js` to be ignored
-- Project resolving `3.0.0-next.*`, or an explicit SvelteKit 2→3 migration ask -> stop applying this file's SvelteKit-2-specific API shapes and read `references/sveltekit-3-preview.md` (migration workflow: `references/migration.md`)
-- Always map `form` props using `form ?? undefined` to prevent strict type check mismatches with child component optional props
-- Never use relative anchor links (`href="#section"`) in global layouts; use root-relative links (`href="/#section"`) to prevent prerender crawler failures on subpages
+Never generate SvelteKit 2-only APIs in SvelteKit 3 code: `invalidateAll`, `pushState`, `replaceState`, `$service-worker`, `$lib`, `kit.csrf.checkOrigin`, `kit.prerender.origin`, `adapter-node` `ORIGIN`, `noScroll`, `keepFocus`, `data-sveltekit-*-off`, `alias` config option, `$env/*`, `$app/environment`, `@sveltejs/kit/node/polyfills`, `preloadStrategy`, `handleRenderingErrors`, `kit.experimental.explicitEnvironmentVariables`, `base`/`assets`/`resolveRoute` from `$app/paths`, page-level `export const snapshot`, `handleValidationError`, or root-package imports of `Page`, the `Navigation*` types, and `ActionResult`/`SubmitFunction`.
+
+Never generate SvelteKit 3-only APIs in SvelteKit 2 code: `refreshAll`, `goto({ shallow, persistState, reset })`, `$app/manifest`, `$app/service-worker`, `#lib`, `paths.origin`, `$app/env/*`, `Path`/`AssetPath` (no leading slash), `resolve()`, `asset()`, `defineParams`, `snapshot()` from `$app/navigation`, the `@sveltejs/kit/params`/`@sveltejs/kit/hooks`/`@sveltejs/kit/env` subpaths, `$app/forms`/`$app/state` type imports, or universal-over-server `config` precedence.
+
+`Path`/`AssetPath` strings have no leading `/` (`asset('foo.png')`), and `resolve()`/`asset()` take constrained literal types — cast through the `$app/types` union (`RouteId`, `Path`, `AssetPath`) when the value is dynamic. `Path` collapses to `never` when the project has no routes.
+
+## Sync and check noise
+
+`svelte-kit sync` may print validator warnings about overwritten tsconfig options against the generated `$app/tsconfig.json` — noise, not diagnostics; do not "fix" them by redefining `paths` in the project tsconfig. Real `svelte-check` errors out of a stray `build/` output folder are a genuine `tsconfig.json` exclude gap; see `references/cli.md` → `sv check`.
